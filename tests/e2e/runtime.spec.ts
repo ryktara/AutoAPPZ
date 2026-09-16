@@ -10,15 +10,17 @@ const appDir = path.resolve(here, "../../apps/desktop");
 let app: ElectronApplication;
 let page: Page;
 let projectsDir: string;
+let dataDir: string;
 
 test.beforeEach(async () => {
   const root = mkdtempSync(path.join(tmpdir(), "autoappz-e2e-runtime-"));
   projectsDir = path.join(root, "projects");
+  dataDir = path.join(root, "data");
   app = await electron.launch({
     args: [appDir],
     env: {
       ...process.env,
-      AUTOAPPZ_DATA_DIR: path.join(root, "data"),
+      AUTOAPPZ_DATA_DIR: dataDir,
       AUTOAPPZ_PROJECTS_DIR: projectsDir,
       AUTOAPPZ_LOG_LEVEL: "debug",
     },
@@ -30,8 +32,20 @@ test.beforeEach(async () => {
   await expect(page.getByTestId("project-name")).toHaveText("Runtime App");
 });
 
-test.afterEach(async () => {
+test.afterEach(async (_fixtures, testInfo) => {
   await app.close();
+  // The dev server's fate is only visible in the app's own log (readiness timeouts, spawn failures and the
+  // process output tail are logged there); surface it in the report when a test fails.
+  if (testInfo.status !== testInfo.expectedStatus) {
+    try {
+      const log = readFileSync(path.join(dataDir, "logs", "main.log"), "utf8");
+      const tail = log.trimEnd().split("\n").slice(-80).join("\n");
+      console.log(`--- main.log tail (${testInfo.title}) ---\n${tail}`);
+      await testInfo.attach("main.log", { body: log, contentType: "application/x-ndjson" });
+    } catch {
+      /* no log was written */
+    }
+  }
 });
 
 test("install, start the dev server, see the app in the preview, capture a runtime error, stop", async () => {

@@ -199,7 +199,8 @@ jobs:
           for t in "${RUNNER_TEMP:-}" "${TMPDIR:-}" /tmp; do
             [ -n "$t" ] || continue
             t=$(cygpath -u "$t" 2>/dev/null || echo "$t")
-            find "$t" -path '*autoappz-e2e*' -name main.log 2>/dev/null | head -n 12 | while read -r log; do
+            find "$t" -path '*autoappz-e2e*' -name main.log 2>/dev/null | while read -r log; do
+              grep -qiE '"level":"(error|warn)"' "$log" || continue
               { echo "## $log"; echo '```'; grep -iE '"level":"(error|warn)"|crash|exited|safeStorage|backend' "$log" | tail -n 80; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
             done
           done
