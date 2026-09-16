@@ -45,8 +45,21 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm test
+      - run: pnpm install --frozen-lockfile 2>&1 | tee install.log
+        shell: bash
+        env:
+          # dugite and electron fetch their binaries from GitHub releases; anonymous runner IPs get throttled.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: pnpm test 2>&1 | tee test.log
+        shell: bash
+      # Job logs need a signed-in viewer; the step summary is public, so surface failure tails there.
+      - if: failure()
+        shell: bash
+        run: |
+          for f in install.log test.log; do
+            [ -f "$f" ] || continue
+            { echo "## $f (last 150 lines)"; echo '```'; tail -n 150 "$f"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          done
 
   templates:
     name: template portability · ${{ matrix.template }}
@@ -146,24 +159,45 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile 2>&1 | tee install.log
+        shell: bash
+        env:
+          # dugite and electron fetch their binaries from GitHub releases; anonymous runner IPs get throttled.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: pnpm --filter @autoappz/desktop build 2>&1 | tee build.log
         shell: bash
-      # Electron is driven directly; only the browser system dependencies are needed on Linux.
-      - run: pnpm --filter @autoappz/e2e exec playwright install --with-deps chromium 2>&1 | tee install.log
+      # Electron is driven directly, so no browser download; Linux still needs Chromium's shared libraries
+      # and a real keyring so safeStorage gets an OS backend (the app refuses to store secrets without one).
+      - if: runner.os == 'Linux'
         shell: bash
+        run: |
+          pnpm --filter @autoappz/e2e exec playwright install-deps chromium 2>&1 | tee deps.log
+          sudo apt-get install -y -qq gnome-keyring libsecret-1-0 dbus-x11 >/dev/null
+          eval "$(dbus-launch --sh-syntax)"
+          echo -n "ci" | gnome-keyring-daemon --unlock --replace --daemonize --components=secrets
+          echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> "$GITHUB_ENV"
+          echo "XDG_CURRENT_DESKTOP=GNOME" >> "$GITHUB_ENV"
       - run: xvfb-run -a pnpm test:e2e 2>&1 | tee e2e.log
         shell: bash
         if: runner.os == 'Linux'
       - run: pnpm test:e2e 2>&1 | tee e2e.log
         shell: bash
         if: runner.os != 'Linux'
+      # Job logs need a signed-in viewer; the step summary is public, so surface failure tails there.
       - if: failure()
         shell: bash
         run: |
-          for f in build.log install.log e2e.log; do
+          for f in install.log build.log deps.log e2e.log; do
             [ -f "$f" ] || continue
             { echo "## $f (last 150 lines)"; echo '```'; tail -n 150 "$f"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          done
+          # The app's own log from each spec's temporary data directory: error and warning lines only.
+          for t in "${RUNNER_TEMP:-}" "${TMPDIR:-}" /tmp; do
+            [ -n "$t" ] || continue
+            t=$(cygpath -u "$t" 2>/dev/null || echo "$t")
+            find "$t" -path '*autoappz-e2e*' -name main.log 2>/dev/null | head -n 12 | while read -r log; do
+              { echo "## $log"; echo '```'; grep -iE '"level":"(error|warn)"|crash|exited' "$log" | tail -n 60; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            done
           done
       - uses: actions/upload-artifact@v6
         if: failure()
