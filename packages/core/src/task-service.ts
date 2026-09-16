@@ -75,6 +75,28 @@ export interface TaskVcs {
   ): Promise<{ sha: string | undefined }>;
 }
 
+/** Retrieved-context port (the context engine in the desktop app). Optional: without it prompts carry only the listing. */
+export interface RetrievalSource {
+  retrieve(input: {
+    projectId: string;
+    projectPath: string;
+    taskId: string;
+    phase: "plan" | "build" | "repair" | "ask";
+    query: string;
+    selections: readonly string[];
+    budgetTokens: number;
+  }): { rendered: string; items: ContextItemSummary[]; usedTokens: number; budgetTokens: number };
+  /** Files changed by the agent; the index re-reads them and records the activity. */
+  notifyChanged(input: {
+    projectId: string;
+    projectPath: string;
+    taskId: string;
+    paths: readonly string[];
+  }): void;
+}
+
+type ContextItemSummary = Extract<TaskStreamChunk, { kind: "context" }>["items"][number];
+
 export interface TaskServiceOptions {
   tasks: TasksRepository;
   events: TaskEventsRepository;
@@ -86,6 +108,9 @@ export interface TaskServiceOptions {
   changes: ChangeTracker;
   context: ProjectContextSource;
   vcs?: TaskVcs | undefined;
+  retrieval?: RetrievalSource | undefined;
+  /** Token budget for retrieved excerpts per model step (default 12 000). */
+  contextBudgetTokens?: number | undefined;
   logger?: Logger | undefined;
   now?: (() => number) | undefined;
   newId?: ((prefix: string) => string) | undefined;
@@ -317,6 +342,7 @@ export class TaskService {
         templateId: project.templateId,
         memory: this.o.context.memory(task.projectId),
         blueprint: this.o.context.blueprint(task.projectId),
+        retrieved: this.retrieved(task, "ask", task.request, []),
       });
       const history = this.o.messages.list(task.sessionId).filter((m) => m.role !== "system");
       const messages: ChatMessage[] = [
@@ -540,7 +566,13 @@ export class TaskService {
     ctx: ProjectPromptContext,
   ): Promise<contracts.Plan | undefined> {
     const messages: ChatMessage[] = [
-      { role: "system", content: buildPlannerSystemPrompt(ctx) },
+      {
+        role: "system",
+        content: buildPlannerSystemPrompt({
+          ...ctx,
+          retrieved: this.retrieved(task, "plan", task.request, pathsMentioned(task.request)),
+        }),
+      },
       { role: "user", content: plannerUserMessage(task.request, live.feedback) },
     ];
     const out = await this.modelCall(task, live, messages, undefined, { silentText: true });
@@ -604,8 +636,21 @@ export class TaskService {
   ): Promise<string | undefined> {
     const plan = this.get(task.id).plan;
     const tools = this.o.tools.specs();
+    const planFiles = plan
+      ? [...new Set(plan.steps.flatMap((st) => st.files))]
+      : pathsMentioned(task.request);
+    const phase = reviewNotes && reviewNotes.length > 0 ? "repair" : "build";
+    const query = plan
+      ? [task.request, plan.summary, ...plan.steps.map((st) => st.title)].join("\n")
+      : task.request;
     const messages: ChatMessage[] = [
-      { role: "system", content: buildBuilderSystemPrompt(ctx, plan) },
+      {
+        role: "system",
+        content: buildBuilderSystemPrompt(
+          { ...ctx, retrieved: this.retrieved(task, phase, query, planFiles) },
+          plan,
+        ),
+      },
       { role: "user", content: task.request },
     ];
     if (reviewNotes && reviewNotes.length > 0)
@@ -658,7 +703,16 @@ export class TaskService {
           signal: live.controller.signal,
           ledger: live.ledger,
         });
-        if (paths.length > 0) this.o.changes.after(task.id, project.path, paths);
+        if (paths.length > 0) {
+          this.o.changes.after(task.id, project.path, paths);
+          if (result.ok)
+            this.o.retrieval?.notifyChanged({
+              projectId: task.projectId,
+              projectPath: project.path,
+              taskId: task.id,
+              paths,
+            });
+        }
         this.hub.publish(task.id, {
           kind: "tool-result",
           callId: call.id,
@@ -867,6 +921,43 @@ export class TaskService {
     return next;
   }
 
+  /** Retrieves excerpts for a model step, publishes the "why included" chunk and returns the rendered block. */
+  private retrieved(
+    task: Task,
+    phase: "plan" | "build" | "repair" | "ask",
+    query: string,
+    selections: readonly string[],
+  ): string | undefined {
+    if (!this.o.retrieval) return undefined;
+    const project = this.o.context.project(task.projectId);
+    try {
+      const pack = this.o.retrieval.retrieve({
+        projectId: task.projectId,
+        projectPath: project.path,
+        taskId: task.id,
+        phase,
+        query,
+        selections,
+        budgetTokens: this.o.contextBudgetTokens ?? 12_000,
+      });
+      this.hub.publish(task.id, {
+        kind: "context",
+        phase,
+        items: pack.items,
+        usedTokens: pack.usedTokens,
+        budgetTokens: pack.budgetTokens,
+      });
+      return pack.rendered || undefined;
+    } catch (error) {
+      // Retrieval is an optimisation: a failure degrades to the plain listing and is reported, not fatal.
+      this.o.logger?.warn("context retrieval failed", {
+        taskId: task.id,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return undefined;
+    }
+  }
+
   private promptContext(task: Task): ProjectPromptContext {
     const project = this.o.context.project(task.projectId);
     return {
@@ -933,6 +1024,18 @@ function describeCall(toolId: string, input: unknown): string {
           ? `"${i["query"]}"`
           : "";
   return p ? `${toolId} ${p}` : toolId;
+}
+
+/** Project-relative paths the user named in a request (e.g. `src/App.tsx`). */
+export function pathsMentioned(text: string): string[] {
+  const out = new Set<string>();
+  const pattern =
+    /(?:^|[\s`"'(])((?:[\w.-]+\/)+[\w.-]+\.[A-Za-z0-9]{1,8}|[\w.-]+\.(?:tsx?|jsx?|css|scss|json|md|html|ya?ml|sql))(?=$|[\s`"'),.;:])/g;
+  for (const m of text.matchAll(pattern)) {
+    const p = m[1];
+    if (p && !p.startsWith("/") && !p.includes("..")) out.add(p.replace(/\\/g, "/"));
+  }
+  return [...out];
 }
 
 function listTopLevel(root: string): string {

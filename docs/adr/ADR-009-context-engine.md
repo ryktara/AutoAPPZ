@@ -16,3 +16,6 @@ Index worker + grammars bundled; benchmark suite maintained; ~1–2 MB of WASM g
 
 ## Migration impact
 None.
+
+## Implementation addendum (M8, 2026-09-16)
+The first implementation keeps the decided architecture (persistent per-project SQLite + FTS5, symbol/import graph, hybrid explainable retrieval, token budgeting) but ships **heuristic parsers** instead of tree-sitter grammars and runs indexing **in-process with cooperative yielding** instead of a utility process. Both are internal to `packages/context` (`LanguageParser` interface; `ContextEngine` API) and can be swapped without touching callers. Rationale: the fixture benchmark already meets the milestone bar (recall@budget ≥ 0.9, re-index < 100 ms/file) and bundling ~1–2 MB of WASM grammars plus a worker protocol was not needed to reach it. UNVERIFIED: performance on 2k+-file repositories (see BENCHMARKS.md targets) has not been measured yet.

@@ -4,6 +4,7 @@ import type { Logger, Redactor } from "@autoappz/diagnostics";
 import { PermissionEngine, type PolicyStore } from "@autoappz/permissions";
 import type { PermissionsRepository, ToolCallsRepository } from "@autoappz/storage";
 import { FS_TOOLS, ToolRuntime, createSearchTool } from "@autoappz/tools";
+import type { AnyTool } from "@autoappz/tools";
 
 export function createPermissionEngine(input: {
   repo: PermissionsRepository;
@@ -45,10 +46,11 @@ export function createToolRuntime(input: {
   redactor: Redactor;
   logger: Logger;
   rgPath?: string | undefined;
+  extraTools?: readonly AnyTool[] | undefined;
   now?: (() => number) | undefined;
 }): ToolRuntime {
   return new ToolRuntime({
-    tools: [...FS_TOOLS, createSearchTool({ rgPath: input.rgPath })],
+    tools: [...FS_TOOLS, createSearchTool({ rgPath: input.rgPath }), ...(input.extraTools ?? [])],
     permissions: input.permissions,
     audit: { record: (e) => input.audit.insert(e) },
     redactor: input.redactor,

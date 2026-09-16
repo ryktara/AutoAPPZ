@@ -116,6 +116,14 @@ test("plan → approve → consent → changes: the vertical slice core", async 
   await expect(activity).toContainText("fs.read");
   await expect(activity).toContainText("fs.patch");
 
+  // The builder step ran with retrieved context; each excerpt explains why it was included.
+  const contextUsed = page.getByTestId("context-used");
+  await expect(contextUsed).toContainText("Context:");
+  await contextUsed.locator("summary").click();
+  const excerpts = page.getByRole("list", { name: "Context excerpts" });
+  await expect(excerpts).toContainText("src/App.tsx");
+  await expect(excerpts).toContainText("named in the plan");
+
   await page.getByRole("tab", { name: "Changes" }).click();
   await expect(page.getByRole("list", { name: "Changed files" })).toContainText("src/App.tsx");
   const diff = page.getByLabel("Diff of src/App.tsx");

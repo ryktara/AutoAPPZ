@@ -149,6 +149,23 @@ export const TaskStreamChunkSchema = z.discriminatedUnion("kind", [
     summary: z.string(),
   }),
   z.object({ kind: z.literal("note"), text: z.string() }),
+  /** Retrieved excerpts handed to the model for this step, each with its reasons. */
+  z.object({
+    kind: z.literal("context"),
+    phase: z.enum(["plan", "build", "repair", "ask"]),
+    items: z.array(
+      z.object({
+        path: z.string(),
+        startLine: z.number().int().positive(),
+        endLine: z.number().int().positive(),
+        kind: z.enum(["chunk", "outline"]),
+        tokens: z.number().int().nonnegative(),
+        reasons: z.array(z.string()),
+      }),
+    ),
+    usedTokens: z.number().int().nonnegative(),
+    budgetTokens: z.number().int().nonnegative(),
+  }),
   z.object({ kind: z.literal("error"), message: z.string(), retryable: z.boolean() }),
   z.object({ kind: z.literal("done"), state: TaskStateSchema }),
 ]);

@@ -45,6 +45,7 @@ export default tseslint.config(
       "coverage/**",
       "**/playwright-report/**",
       "**/test-results/**",
+      "**/test/fixtures/**",
     ],
   },
   js.configs.recommended,

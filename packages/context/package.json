@@ -2,13 +2,21 @@
   "name": "@autoappz/context",
   "version": "0.0.0",
   "private": true,
-  "description": "Persistent incremental context engine: index, retrieval, packing (M9).",
+  "description": "Persistent incremental context engine: per-project SQLite index (FTS5), symbols, import graph, explainable retrieval and token budgeting.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@autoappz/contracts": "workspace:*"
+    "@autoappz/contracts": "workspace:*",
+    "@autoappz/diagnostics": "workspace:*",
+    "@autoappz/tools": "workspace:*",
+    "better-sqlite3": "^13.0.3",
+    "zod": "^4.3.0"
+  },
+  "devDependencies": {
+    "@autoappz/testing": "workspace:*",
+    "@types/better-sqlite3": "^9.6.0"
   }
 }

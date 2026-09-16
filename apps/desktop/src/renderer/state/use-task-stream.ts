@@ -18,6 +18,8 @@ export interface TaskStreamView {
   readonly plan: tasks.Plan | undefined;
   readonly tools: readonly ToolActivity[];
   readonly notes: readonly string[];
+  /** Latest retrieved-context pack (why each excerpt was included). */
+  readonly context: Extract<tasks.TaskStreamChunk, { kind: "context" }> | undefined;
   readonly cost: tasks.TaskCost | undefined;
   readonly error: { message: string; retryable: boolean } | undefined;
   readonly done: boolean;
@@ -31,6 +33,7 @@ const EMPTY: TaskStreamView = {
   plan: undefined,
   tools: [],
   notes: [],
+  context: undefined,
   cost: undefined,
   error: undefined,
   done: false,
@@ -112,6 +115,8 @@ function fold(v: TaskStreamView, chunk: tasks.TaskStreamChunk): TaskStreamView {
       };
     case "note":
       return { ...v, notes: [...v.notes, chunk.text] };
+    case "context":
+      return { ...v, context: chunk };
     case "usage":
       return { ...v, cost: chunk.cost };
     case "error":

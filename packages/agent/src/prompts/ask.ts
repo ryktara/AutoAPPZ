@@ -8,6 +8,8 @@ export interface AskPromptInput {
   readonly templateId?: string | undefined;
   readonly memory: readonly memory.ProjectMemoryItem[];
   readonly blueprint: blueprint.BlueprintDocument | null;
+  /** Rendered `<context>` block of retrieved excerpts; empty when none. */
+  readonly retrieved?: string | undefined;
 }
 
 /**
@@ -44,5 +46,6 @@ export function buildAskSystemPrompt(input: AskPromptInput): string {
       lines.push(`acceptance criteria: ${String(b.acceptance_criteria.length)}`);
     lines.push("</blueprint>");
   }
+  if (input.retrieved) lines.push("", input.retrieved);
   return lines.join("\n");
 }

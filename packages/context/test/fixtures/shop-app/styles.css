@@ -1,0 +1,13 @@
+:root {
+  --primary: #2563eb;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.reservation-list {
+  display: grid;
+  gap: 8px;
+}

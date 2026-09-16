@@ -10,6 +10,8 @@ export interface ProjectPromptContext {
   readonly blueprint: blueprint.BlueprintDocument | null;
   /** Top-level listing, already bounded. */
   readonly fileListing: string;
+  /** Rendered `<context>` block of retrieved excerpts (already delimited as data); empty when none. */
+  readonly retrieved?: string | undefined;
 }
 
 function projectBlock(ctx: ProjectPromptContext): string[] {
@@ -24,6 +26,7 @@ function projectBlock(ctx: ProjectPromptContext): string[] {
     ctx.fileListing,
     "</files>",
   ];
+  if (ctx.retrieved) lines.push("", ctx.retrieved);
   if (ctx.memory.length > 0) {
     lines.push(
       "",

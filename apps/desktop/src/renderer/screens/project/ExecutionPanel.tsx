@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { permissions } from "@autoappz/contracts";
 import { EmptyState, Tag } from "@autoappz/ui";
 import { useQuery } from "../../state/hooks.ts";
@@ -34,6 +34,7 @@ export function ExecutionPanel({
           {n}
         </p>
       ))}
+      {live.context ? <ContextUsed pack={live.context} /> : null}
       {rows.length === 0 ? (
         <EmptyState>{live.done ? "No tools were used." : "Waiting for tool activity…"}</EmptyState>
       ) : (
@@ -57,5 +58,45 @@ export function ExecutionPanel({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** "Why is this here?" — the excerpts handed to the model for the latest step, with their reasons. */
+function ContextUsed({ pack }: { readonly pack: NonNullable<TaskStreamView["context"]> }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details
+      className="az-details"
+      data-testid="context-used"
+      open={open}
+      onToggle={(e) => {
+        setOpen(e.currentTarget.open);
+      }}
+    >
+      <summary>
+        Context: {String(pack.items.length)} excerpt(s), {String(pack.usedTokens)} of{" "}
+        {String(pack.budgetTokens)} tokens ({pack.phase})
+      </summary>
+      {pack.items.length === 0 ? (
+        <p className="az-muted">Nothing retrieved: the index may still be building.</p>
+      ) : (
+        <ul className="az-list" aria-label="Context excerpts">
+          {pack.items.map((item) => (
+            <li key={`${item.path}:${String(item.startLine)}`} className="az-list-row">
+              <Tag>{item.kind}</Tag>
+              <span className="az-list-grow">
+                <div>
+                  <code>
+                    {item.path}:{String(item.startLine)}-{String(item.endLine)}
+                  </code>{" "}
+                  <span className="az-muted">{String(item.tokens)} tokens</span>
+                </div>
+                <div className="az-list-secondary">{item.reasons.join(" · ")}</div>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
   );
 }

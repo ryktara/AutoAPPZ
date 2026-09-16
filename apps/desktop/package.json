@@ -16,6 +16,7 @@
     "@autoappz/agent": "workspace:*",
     "@autoappz/ai-providers": "workspace:*",
     "@autoappz/command-bus": "workspace:*",
+    "@autoappz/context": "workspace:*",
     "@autoappz/contracts": "workspace:*",
     "@autoappz/core": "workspace:*",
     "@autoappz/diagnostics": "workspace:*",

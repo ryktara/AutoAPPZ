@@ -24,6 +24,7 @@ import type { ProviderRegistry } from "@autoappz/ai-providers";
 import { createProviderRegistry, registerProviderHandlers } from "./providers-wiring.ts";
 import { createTaskService, registerTaskHandlers } from "./tasks-wiring.ts";
 import { createGitWiring, registerGitHandlers } from "./git-wiring.ts";
+import { createContextWiring, registerContextHandlers } from "./context-wiring.ts";
 import type { TaskService } from "@autoappz/core";
 import type { PermissionEngine } from "@autoappz/permissions";
 import type { ToolRuntime } from "@autoappz/tools";
@@ -182,11 +183,16 @@ export function createServices(options: ServicesOptions): MainServices {
   bus.handle(project.projectDefaultDirectory, () => ({ path: projects.defaultDirectory() }));
   bus.handle(project.projectCreate, (input) => projects.create(input));
   bus.handle(project.projectImport, (input) => projects.import(input));
-  bus.handle(project.projectOpen, ({ id }) => projects.open(id));
+  bus.handle(project.projectOpen, ({ id }) => {
+    const opened = projects.open(id);
+    contextWiring.warm(id);
+    return opened;
+  });
   bus.handle(project.projectRename, ({ id, name }) => projects.rename(id, name));
   bus.handle(project.projectDelete, (input) => {
     projects.delete(input);
     projectSettings.remove(input.id);
+    contextWiring.forget(input.id);
   });
   bus.handle(project.projectSettingsGet, ({ projectId }) => {
     projects.get(projectId);
@@ -243,7 +249,15 @@ export function createServices(options: ServicesOptions): MainServices {
     consentTimeoutMs: options.consentTimeoutMs,
   });
   const toolCalls = new ToolCallsRepository(db.db);
+  const contextWiring = createContextWiring({
+    bus,
+    projects,
+    dataDirectory: options.dbPath === ":memory:" ? ":memory:" : options.dataDirectory,
+    logger: log.child("context"),
+    now: options.now,
+  });
   const tools = createToolRuntime({
+    extraTools: contextWiring.tools,
     permissions: permissionsEngine,
     audit: toolCalls,
     redactor: options.redactor,
@@ -263,6 +277,7 @@ export function createServices(options: ServicesOptions): MainServices {
   const taskWiring = createTaskService({
     db: db.db,
     vcs: gitWiring.vcs,
+    retrieval: contextWiring.retrieval,
     usageRepo,
     providers,
     tools,
@@ -281,6 +296,7 @@ export function createServices(options: ServicesOptions): MainServices {
     projects,
     tasks: taskWiring.service,
   });
+  registerContextHandlers(bus, contextWiring, projects);
   // Managed projects start with an initial commit so the first task has a base to diff against.
   projects.onChange((change) => {
     if (change.kind !== "created") return;
@@ -321,6 +337,7 @@ export function createServices(options: ServicesOptions): MainServices {
     runtime,
     async close() {
       await runtime.stopAll();
+      contextWiring.close();
       db.close();
     },
   };

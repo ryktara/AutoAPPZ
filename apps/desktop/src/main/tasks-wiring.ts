@@ -1,7 +1,13 @@
 import type { ProviderRegistry } from "@autoappz/ai-providers";
 import type { CommandBusHost } from "@autoappz/command-bus";
 import { tasks as contracts, type settings as settingsContracts } from "@autoappz/contracts";
-import { ChangeTracker, TaskService, type ProjectContextSource, type TaskVcs } from "@autoappz/core";
+import {
+  ChangeTracker,
+  TaskService,
+  type ProjectContextSource,
+  type TaskVcs,
+  type RetrievalSource,
+} from "@autoappz/core";
 import type { Logger } from "@autoappz/diagnostics";
 import type {
   BlueprintService,
@@ -32,6 +38,7 @@ export function createTaskService(input: {
   blueprints: BlueprintService;
   logger: Logger;
   vcs?: TaskVcs | undefined;
+  retrieval?: RetrievalSource | undefined;
   now?: (() => number) | undefined;
 }): { service: TaskService; sessions: SessionsRepository; messages: MessagesRepository } {
   const sessions = new SessionsRepository(input.db);
@@ -56,6 +63,7 @@ export function createTaskService(input: {
     changes: new ChangeTracker(new TaskChangesRepository(input.db), input.now),
     context,
     vcs: input.vcs,
+    retrieval: input.retrieval,
     logger: input.logger,
     now: input.now,
   });
