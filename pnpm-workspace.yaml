@@ -1,0 +1,12 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "tests/*"
+
+# Native/binary postinstall scripts we explicitly allow (pnpm 11 build approval).
+allowBuilds:
+  electron: true
+  esbuild: true
+
+# @electron/rebuild (via electron-forge) resolves @electron/node-gyp from git.
+blockExoticSubdeps: false

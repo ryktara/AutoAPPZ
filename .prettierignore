@@ -1,0 +1,11 @@
+_reference/
+node_modules/
+dist/
+out/
+.vite/
+coverage/
+pnpm-lock.yaml
+CHANGELOG.md
+docs/**/*.md
+*.md
+LICENSE

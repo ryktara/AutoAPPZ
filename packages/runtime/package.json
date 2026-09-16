@@ -1,0 +1,14 @@
+{
+  "name": "@autoappz/runtime",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Runtime supervisor: install/serve/build/test phases, port leases, health probes (M7).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autoappz/contracts": "workspace:*"
+  }
+}

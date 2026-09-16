@@ -1,0 +1,15 @@
+{
+  "name": "@autoappz/command-bus",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Typed command bus: handler registry, validation, cancellation, streams, events and transport abstraction.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autoappz/contracts": "workspace:*",
+    "zod": "^4.3.0"
+  }
+}

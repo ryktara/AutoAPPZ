@@ -1,0 +1,50 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "useUnknownInCatchVariables": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "types": ["node"],
+    "paths": {
+      "@autoappz/contracts": ["./packages/contracts/src/index.ts"],
+      "@autoappz/command-bus": ["./packages/command-bus/src/index.ts"],
+      "@autoappz/core": ["./packages/core/src/index.ts"],
+      "@autoappz/agent": ["./packages/agent/src/index.ts"],
+      "@autoappz/ai-providers": ["./packages/ai-providers/src/index.ts"],
+      "@autoappz/tools": ["./packages/tools/src/index.ts"],
+      "@autoappz/project": ["./packages/project/src/index.ts"],
+      "@autoappz/runtime": ["./packages/runtime/src/index.ts"],
+      "@autoappz/git": ["./packages/git/src/index.ts"],
+      "@autoappz/storage": ["./packages/storage/src/index.ts"],
+      "@autoappz/secrets": ["./packages/secrets/src/index.ts"],
+      "@autoappz/diagnostics": ["./packages/diagnostics/src/index.ts"],
+      "@autoappz/permissions": ["./packages/permissions/src/index.ts"],
+      "@autoappz/validation": ["./packages/validation/src/index.ts"],
+      "@autoappz/context": ["./packages/context/src/index.ts"],
+      "@autoappz/integrations": ["./packages/integrations/src/index.ts"],
+      "@autoappz/plugins": ["./packages/plugins/src/index.ts"],
+      "@autoappz/ui": ["./packages/ui/src/index.ts"],
+      "@autoappz/testing": ["./packages/testing/src/index.ts"]
+    }
+  }
+}

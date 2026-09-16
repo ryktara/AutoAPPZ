@@ -14,5 +14,6 @@
 | [ADR-009](ADR-009-context-engine.md) | Context Engine | Accepted |
 | [ADR-010](ADR-010-plugin-architecture.md) | Plugin / extension architecture | Accepted |
 | [ADR-011](ADR-011-monorepo-toolchain.md) | Monorepo and toolchain | Accepted |
+| [ADR-012](ADR-012-source-exports-and-typecheck-projects.md) | Workspace packages export TS source; three typecheck projects | Accepted |
 
 Format: Status · Context · Decision · Alternatives · Consequences · Migration impact.

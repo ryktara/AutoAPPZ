@@ -24,3 +24,15 @@ See `docs/design/SYSTEM-ARCHITECTURE.md §2`. Each package builds with project r
 ## Common problems
 - Native rebuild failures → `pnpm rebuild` after switching Node versions; the desktop app rebuilds natives for Electron during `pnpm dev`.
 - Windows long paths → enable `git config core.longpaths true`.
+
+## Toolchain notes (M0)
+
+- Node 24 (`.nvmrc`), pnpm 11 (`packageManager` field; run `corepack enable` if `pnpm` is missing).
+- `pnpm-workspace.yaml` carries pnpm policy: `allowBuilds` (electron, esbuild postinstall) and
+  `blockExoticSubdeps: false` (Electron Forge's rebuild dependency is resolved from git). See ADR-012.
+- Packages export TypeScript source; there is no per-package build. `pnpm check` = typecheck (3 projects) +
+  lint + prettier + unit tests. `pnpm clean-room:check` greps for reference-product identifiers.
+- Desktop: `pnpm dev` (Forge + Vite HMR) or `pnpm build && pnpm test:e2e` (Playwright drives the built app;
+  set `AUTOAPPZ_DATA_DIR` to isolate state).
+- If Electron's postinstall is interrupted you will see "Electron failed to install correctly": delete
+  `%LOCALAPPDATA%/electron/Cache` (or `~/.cache/electron`) and re-run `pnpm install`.

@@ -1,0 +1,14 @@
+{
+  "name": "@autoappz/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Zod schemas and TypeScript types for every command, query, event, stream and DTO — the only package shared by renderer and main.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "zod": "^4.3.0"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@autoappz/validation",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Validators (typecheck, lint, build, test) with structured diagnostics (M8).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autoappz/contracts": "workspace:*"
+  }
+}

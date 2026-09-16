@@ -1,0 +1,14 @@
+{
+  "name": "@autoappz/storage",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Platform SQLite database, migrations and repositories (M2).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autoappz/contracts": "workspace:*"
+  }
+}

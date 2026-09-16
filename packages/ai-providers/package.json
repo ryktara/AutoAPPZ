@@ -1,0 +1,14 @@
+{
+  "name": "@autoappz/ai-providers",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Model provider adapters and capability-based router (M3).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autoappz/contracts": "workspace:*"
+  }
+}

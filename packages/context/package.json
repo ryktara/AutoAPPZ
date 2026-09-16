@@ -1,0 +1,14 @@
+{
+  "name": "@autoappz/context",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Persistent incremental context engine: index, retrieval, packing (M9).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autoappz/contracts": "workspace:*"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@autoappz/ui",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Design tokens and React component library (renderer-only).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css"
+  },
+  "dependencies": {
+    "@autoappz/contracts": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  }
+}

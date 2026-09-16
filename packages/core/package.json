@@ -1,0 +1,14 @@
+{
+  "name": "@autoappz/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Composition root helpers: service container, clock, id generation, result type.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autoappz/contracts": "workspace:*"
+  }
+}
