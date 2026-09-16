@@ -4,6 +4,7 @@ import * as memory from "./domains/memory.ts";
 import * as permissions from "./domains/permissions.ts";
 import * as project from "./domains/project.ts";
 import * as providers from "./domains/providers.ts";
+import * as runtime from "./domains/runtime.ts";
 import * as settings from "./domains/settings.ts";
 import * as tasks from "./domains/tasks.ts";
 import * as workspace from "./domains/workspace.ts";
@@ -73,6 +74,17 @@ export const ALL_CONTRACTS: readonly AnyDefinition[] = [
   permissions.consentRequested,
   permissions.consentResolved,
   permissions.toolAudit,
+  runtime.runtimeStatus,
+  runtime.runtimeStart,
+  runtime.runtimeStop,
+  runtime.runtimeRestart,
+  runtime.runtimeLogs,
+  runtime.runtimeDiagnostics,
+  runtime.runtimeClearDiagnostics,
+  runtime.runtimeReportPreviewEvent,
+  runtime.runtimeOutput,
+  runtime.runtimeStateChanged,
+  runtime.runtimeDiagnostic,
 ];
 
 export function contractNames(kind?: AnyDefinition["kind"]): readonly string[] {

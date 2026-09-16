@@ -8,6 +8,7 @@
 
 ## Window security
 - CSP: `default-src 'self'; script-src 'self'; connect-src 'self' <dev origin in dev>; img-src 'self' data: autoappz-media:; frame-src http://127.0.0.1:* http://localhost:*` (preview iframes only), `object-src 'none'`, `base-uri 'none'`.
+- The CSP header is injected only for AutoAPPZ's own documents (`file://` / dev origin); preview iframes (loopback proxy origins) keep their own headers.
 - Navigation: main-frame navigation only to the packaged `index.html` or dev origin; all `window.open` denied except HTTP(S) preview popups re-created with hardened options.
 - Trusted-frame check on every command: sender frame is the main frame of a registered window and its URL is the packaged renderer or dev origin (`apps/desktop/src/main/security.ts`, unit-tested; the transport attaches `PeerInfo.trusted` and the bus drops untrusted traffic).
 - Protocol `autoappz://` for OAuth loopback completion and deep links; payloads validated; queued until a window is ready; ignored during shutdown.

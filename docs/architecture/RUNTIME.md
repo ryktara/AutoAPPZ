@@ -25,3 +25,10 @@ Proxy per project injects one script (`autoappz-preview.js`, versioned) that rep
 
 ## Diagnostics extraction
 Parsers produce `Diagnostic { source: "install"|"vite"|"next"|"tsc"|"playwright"|"runtime", severity, file?, range?, code?, message, stack?, command?, likelyCause? }` consumed by the Runtime Observer and the repair loop.
+
+## Implementation notes (M7)
+
+- `packages/runtime` implements the model above; the desktop composition root supplies a `CommandPlanner` (template manifest commands for bundled templates, otherwise `package.json` scripts with the detected package manager). Windows `.cmd` shims are resolved to `node <entry>`; nothing spawns with `shell: true`.
+- Readiness: HTTP probe on the leased port; if the dev server prints a different `http://127.0.0.1:<port>/` it is probed and adopted (logged). The preview proxy attaches only after readiness.
+- The renderer's strict CSP header is scoped to AutoAPPZ's own documents (`isAppUrl`); previewed apps keep their own headers so dev tooling (inline React refresh preamble) works. The preview iframe is sandboxed (`allow-scripts allow-same-origin allow-forms allow-modals`), loads only loopback proxy origins (`frame-src` restricted), and preview messages are accepted only from the iframe's own window/origin and validated against `PreviewEventSchema` before `runtime.reportPreviewEvent`.
+- Not yet implemented: container profile (`runtime.profile_unsupported`), interactive terminal, `script` phase UI, per-phase log persistence across restarts.

@@ -21,7 +21,7 @@ async function withServices<T>(fn: (ctx: Awaited<ReturnType<typeof boot>>) => Pr
       return await fn(ctx);
     } finally {
       ctx.client.close();
-      ctx.services.close();
+      await ctx.services.close();
     }
   });
 }
@@ -140,7 +140,7 @@ describe("main services", () => {
           { sessionId: "s" },
         ),
       ).rejects.toMatchObject({ code: "secrets.no_secure_storage" });
-      services.close();
+      await services.close();
     });
   });
 });

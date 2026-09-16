@@ -1,42 +1,27 @@
-export type RuntimePhase = "install" | "serve" | "build" | "test";
-
-export type ProcessState =
-  "pending" | "starting" | "healthy" | "unhealthy" | "stopping" | "stopped" | "failed";
-
-export interface RuntimeProcess {
-  readonly id: string;
-  readonly projectId: string;
-  readonly phase: RuntimePhase;
-  readonly state: ProcessState;
-  readonly pid: number | undefined;
-  readonly port: number | undefined;
-  readonly startedAt: number;
-}
+export { buildChildEnv, detectPackageManager, resolveCmdShim, resolveExecutable } from "./command.ts";
+export type { ResolvedCommand } from "./command.ts";
+export { PROXY_BAND, PortLeaseRegistry, SERVE_BAND, isPortFree } from "./ports.ts";
+export type { PortBand, PortLease } from "./ports.ts";
+export { LineSplitter, OutputRing, stripAnsi } from "./output.ts";
+export { extractDiagnostic } from "./diagnostics.ts";
+export type { Extracted } from "./diagnostics.ts";
+export { httpProbe, isAlive, killTree } from "./process.ts";
+export {
+  PREVIEW_SCRIPT_PATH,
+  PREVIEW_SCRIPT_VERSION,
+  injectScript,
+  previewScript,
+  startPreviewProxy,
+} from "./proxy.ts";
+export type { PreviewProxy } from "./proxy.ts";
+export { RuntimeSupervisor } from "./supervisor.ts";
+export type { CommandPlanner, PhaseCommand, SupervisorOptions } from "./supervisor.ts";
 
 /** Fixed budgets per phase (docs/architecture/RUNTIME.md). */
-export const PHASE_TIMEOUTS_MS: Readonly<Record<RuntimePhase, number>> = {
+export const PHASE_TIMEOUTS_MS = {
   install: 15 * 60_000,
   build: 10 * 60_000,
   test: 20 * 60_000,
-  serve: 3 * 60_000, // time to first healthy probe
-};
-
-export const PORT_RANGES = {
-  app: { from: 41_000, to: 41_999 },
-  preview: { from: 42_000, to: 42_999 },
+  serve: 3 * 60_000,
+  script: 10 * 60_000,
 } as const;
-
-/** Commands are always executable + argument array; never a shell string. */
-export interface SpawnSpec {
-  readonly executable: string;
-  readonly args: readonly string[];
-  readonly cwd: string;
-  readonly env?: Readonly<Record<string, string>>;
-  readonly timeoutMs: number;
-}
-
-export interface RuntimeSupervisor {
-  start(projectId: string, phase: RuntimePhase): Promise<RuntimeProcess>;
-  stop(processId: string): Promise<void>;
-  list(projectId?: string): readonly RuntimeProcess[];
-}

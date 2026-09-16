@@ -11,3 +11,4 @@ export * as memory from "./domains/memory.ts";
 export * as providers from "./domains/providers.ts";
 export * as tasks from "./domains/tasks.ts";
 export * as permissions from "./domains/permissions.ts";
+export * as runtime from "./domains/runtime.ts";

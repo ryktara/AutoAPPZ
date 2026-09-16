@@ -32,6 +32,8 @@ import {
   registerPermissionHandlers,
   ripgrepPath,
 } from "./permissions-wiring.ts";
+import type { RuntimeSupervisor } from "@autoappz/runtime";
+import { createCommandPlanner, createRuntimeSupervisor, registerRuntimeHandlers } from "./runtime-wiring.ts";
 import {
   BlueprintsRepository,
   PLATFORM_DB_FILENAME,
@@ -66,7 +68,8 @@ export interface MainServices {
   readonly tasks: TaskService;
   readonly permissions: PermissionEngine;
   readonly tools: ToolRuntime;
-  close(): void;
+  readonly runtime: RuntimeSupervisor;
+  close(): Promise<void>;
 }
 
 export interface ServicesOptions {
@@ -263,6 +266,14 @@ export function createServices(options: ServicesOptions): MainServices {
   });
   registerTaskHandlers(bus, taskWiring.service, taskWiring.sessions, taskWiring.messages);
 
+  const runtime = createRuntimeSupervisor({
+    planner: createCommandPlanner({ projects, templates, projectSettings }),
+    bus,
+    logger: log.child("runtime"),
+    now: options.now,
+  });
+  registerRuntimeHandlers(bus, runtime);
+
   const unhandled = bus.unhandledContracts();
   if (unhandled.length > 0) {
     throw new AppError(
@@ -282,7 +293,9 @@ export function createServices(options: ServicesOptions): MainServices {
     tasks: taskWiring.service,
     permissions: permissionsEngine,
     tools,
-    close() {
+    runtime,
+    async close() {
+      await runtime.stopAll();
       db.close();
     },
   };

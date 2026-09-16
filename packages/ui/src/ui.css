@@ -622,3 +622,40 @@ pre {
   display: block;
   color: var(--color-text-muted);
 }
+
+/* Preview + dock logs */
+.az-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  flex: 1;
+}
+.az-preview-frame {
+  flex: 1;
+  min-height: 240px;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+.az-log {
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.4;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.az-log-stderr {
+  color: var(--color-danger);
+}
+.az-log-system {
+  color: var(--color-text-muted);
+}

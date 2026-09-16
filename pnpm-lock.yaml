@@ -62,6 +62,9 @@ importers:
       '@autoappz/project':
         specifier: workspace:*
         version: link:../../packages/project
+      '@autoappz/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
       '@autoappz/secrets':
         specifier: workspace:*
         version: link:../../packages/secrets
@@ -276,6 +279,13 @@ importers:
       '@autoappz/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@autoappz/diagnostics':
+        specifier: workspace:*
+        version: link:../diagnostics
+    devDependencies:
+      '@autoappz/testing':
+        specifier: workspace:*
+        version: link:../testing
 
   packages/secrets:
     dependencies:

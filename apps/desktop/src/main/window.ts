@@ -12,6 +12,13 @@ export const DEV_URL =
 export function installSessionHardening(): void {
   const s = session.defaultSession;
   s.webRequest.onHeadersReceived((details, callback) => {
+    // The strict CSP protects AutoAPPZ's own documents. Previewed apps (loopback proxy origins loaded in
+    // the sandboxed iframe) keep their own headers; forcing ours onto them would break their inline
+    // dev tooling (e.g. React refresh preambles) without protecting anything of ours.
+    if (!isAppUrl(details.url, DEV_URL)) {
+      callback({});
+      return;
+    }
     callback({
       responseHeaders: {
         ...details.responseHeaders,

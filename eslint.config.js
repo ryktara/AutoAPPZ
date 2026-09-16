@@ -152,7 +152,7 @@ export default tseslint.config(
     ...tseslint.configs.disableTypeChecked,
   },
   {
-    files: ["tools/**"],
+    files: ["tools/**", "**/test/fixtures/**"],
     rules: { "no-console": "off" },
   },
 );

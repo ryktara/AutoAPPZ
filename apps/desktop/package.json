@@ -21,6 +21,7 @@
     "@autoappz/diagnostics": "workspace:*",
     "@autoappz/permissions": "workspace:*",
     "@autoappz/project": "workspace:*",
+    "@autoappz/runtime": "workspace:*",
     "@autoappz/secrets": "workspace:*",
     "@autoappz/storage": "workspace:*",
     "@autoappz/tools": "workspace:*",

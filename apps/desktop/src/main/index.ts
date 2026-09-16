@@ -130,9 +130,16 @@ if (!app.requestSingleInstanceLock()) {
     if (process.platform !== "darwin") app.quit();
   });
 
-  app.on("before-quit", () => {
-    services?.close();
+  let quitting = false;
+  app.on("before-quit", (event) => {
+    if (quitting || !services) return;
+    event.preventDefault();
+    quitting = true;
+    const pending = services;
     services = undefined;
-    logger.info("shutdown");
+    void Promise.race([pending.close(), new Promise((r) => setTimeout(r, 8_000))]).finally(() => {
+      logger.info("shutdown");
+      app.quit();
+    });
   });
 }

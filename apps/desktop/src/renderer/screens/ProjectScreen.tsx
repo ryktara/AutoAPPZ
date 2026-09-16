@@ -5,6 +5,8 @@ import { PermissionsPanel } from "./project/PermissionsPanel.tsx";
 import { PlanPanel } from "./project/PlanPanel.tsx";
 import { ExecutionPanel } from "./project/ExecutionPanel.tsx";
 import { ChangesPanel } from "./project/ChangesPanel.tsx";
+import { PreviewPane } from "./project/PreviewPane.tsx";
+import { Dock } from "./project/Dock.tsx";
 import { useTaskStream } from "../state/use-task-stream.ts";
 import { blueprint, memory, project, tasks } from "@autoappz/contracts";
 
@@ -37,13 +39,6 @@ const WORK_TABS = [
 ] as const;
 type WorkTab = (typeof WORK_TABS)[number]["id"];
 
-const DOCK_TABS = [
-  { id: "problems", label: "Problems" },
-  { id: "terminal", label: "Terminal" },
-  { id: "logs", label: "Logs" },
-] as const;
-type DockTab = (typeof DOCK_TABS)[number]["id"];
-
 export function ProjectScreen({ id }: { readonly id: string }) {
   const input = useMemo(() => ({ id }), [id]);
   const p = useQuery(project.projectGet, input);
@@ -62,7 +57,6 @@ export function ProjectScreen({ id }: { readonly id: string }) {
   useEffect(() => {
     if (live.state === "AWAIT_APPROVAL") setTab("plan");
   }, [live.state]);
-  const [dock, setDock] = useState<DockTab>("problems");
   const { navigate } = useRouter();
 
   if (p.status === "error") {
@@ -140,29 +134,10 @@ export function ProjectScreen({ id }: { readonly id: string }) {
 
       <section className="az-pane az-pane-preview" aria-label="Preview">
         <h2 className="az-pane-title">Preview</h2>
-        <EmptyState>
-          Start the runtime to see your app here. Runtime controls arrive with the Runtime Supervisor.
-        </EmptyState>
+        <PreviewPane projectId={id} />
       </section>
 
-      <section className="az-dock" aria-label="Dock">
-        <Tabs
-          tabs={DOCK_TABS}
-          activeId={dock}
-          onChange={(t) => {
-            setDock(t as DockTab);
-          }}
-        />
-        <div className="az-dock-body">
-          <EmptyState>
-            {dock === "problems"
-              ? "No problems reported."
-              : dock === "terminal"
-                ? "No terminal sessions."
-                : "No runtime logs yet."}
-          </EmptyState>
-        </div>
-      </section>
+      <Dock projectId={id} />
     </div>
   );
 }
