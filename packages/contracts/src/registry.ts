@@ -2,6 +2,7 @@ import type { AnyDefinition } from "./definitions.ts";
 import * as blueprint from "./domains/blueprint.ts";
 import * as memory from "./domains/memory.ts";
 import * as project from "./domains/project.ts";
+import * as providers from "./domains/providers.ts";
 import * as settings from "./domains/settings.ts";
 import * as workspace from "./domains/workspace.ts";
 
@@ -42,6 +43,14 @@ export const ALL_CONTRACTS: readonly AnyDefinition[] = [
   memory.memoryAdd,
   memory.memorySupersede,
   memory.memoryDelete,
+  providers.providersList,
+  providers.providersConfigure,
+  providers.providersValidate,
+  providers.providersModels,
+  providers.providersSettingsGet,
+  providers.providersSettingsUpdate,
+  providers.providersRoute,
+  providers.usageSummary,
 ];
 
 export function contractNames(kind?: AnyDefinition["kind"]): readonly string[] {

@@ -13,6 +13,7 @@
     "make": "electron-forge make"
   },
   "dependencies": {
+    "@autoappz/ai-providers": "workspace:*",
     "@autoappz/command-bus": "workspace:*",
     "@autoappz/contracts": "workspace:*",
     "@autoappz/core": "workspace:*",

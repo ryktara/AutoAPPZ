@@ -6,7 +6,8 @@
   "type": "module",
   "devDependencies": {
     "@playwright/test": "^1.58.0",
-    "electron": "40.0.0"
+    "electron": "40.0.0",
+    "@autoappz/testing": "workspace:*"
   },
   "scripts": {
     "test": "playwright test"

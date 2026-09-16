@@ -10,6 +10,8 @@ export { SecretRefsRepository } from "./repositories/secret-refs.ts";
 export { ProjectsRepository } from "./repositories/projects.ts";
 export { BlueprintsRepository, RequirementsRepository } from "./repositories/blueprints.ts";
 export { ProjectMemoryRepository } from "./repositories/project-memory.ts";
+export { UsageRecordsRepository } from "./repositories/usage-records.ts";
+export type { UsageRecordRow } from "./repositories/usage-records.ts";
 export { SettingsService } from "./settings-service.ts";
 export type { UserSettingsPatch } from "./settings-service.ts";
 

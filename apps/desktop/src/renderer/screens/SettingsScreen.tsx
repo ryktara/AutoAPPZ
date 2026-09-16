@@ -13,6 +13,7 @@ import {
   TextInput,
 } from "@autoappz/ui";
 import { useCommand, useQuery } from "../state/hooks.ts";
+import { ProvidersSection } from "./ProvidersSection.tsx";
 
 const SECRET_KINDS: readonly { value: SecretKind; label: string }[] = [
   { value: "api-key", label: "API key" },
@@ -25,6 +26,7 @@ const SECRET_KINDS: readonly { value: SecretKind; label: string }[] = [
 export function SettingsScreen() {
   return (
     <Page title="Settings" subtitle="Preferences are stored locally. Secrets live in your OS secure storage.">
+      <ProvidersSection />
       <GeneralSection />
       <SecretsSection />
       <AboutSection />

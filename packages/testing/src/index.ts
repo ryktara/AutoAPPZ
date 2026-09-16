@@ -43,3 +43,13 @@ export function deferred<T>(): {
   });
   return { promise, resolve, reject };
 }
+
+export { startFakeModelServer } from "./fake-model-server.ts";
+export type {
+  FakeModelServer,
+  FakeModelServerOptions,
+  FakeScenario,
+  FakeToolCall,
+  FakeTurn,
+  RecordedRequest,
+} from "./fake-model-server.ts";

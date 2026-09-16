@@ -20,6 +20,8 @@ import {
   TemplateRegistry,
 } from "@autoappz/project";
 import { SecretService, type Cipher } from "@autoappz/secrets";
+import type { ProviderRegistry } from "@autoappz/ai-providers";
+import { createProviderRegistry, registerProviderHandlers } from "./providers-wiring.ts";
 import {
   BlueprintsRepository,
   PLATFORM_DB_FILENAME,
@@ -29,6 +31,7 @@ import {
   SecretRefsRepository,
   SettingsRepository,
   SettingsService,
+  UsageRecordsRepository,
   openDatabase,
   type DatabaseHandle,
 } from "@autoappz/storage";
@@ -47,6 +50,7 @@ export interface MainServices {
   readonly settings: SettingsService;
   readonly secrets: SecretService;
   readonly projects: ProjectCatalog;
+  readonly providers: ProviderRegistry;
   close(): void;
 }
 
@@ -109,6 +113,14 @@ export function createServices(options: ServicesOptions): MainServices {
   const blueprints = new BlueprintService(blueprintsRepo, options.now);
   const requirements = new RequirementsService(new RequirementsRepository(db.db), blueprintsRepo);
   const projectMemory = new ProjectMemoryService(new ProjectMemoryRepository(db.db), options.now);
+  const usageRepo = new UsageRecordsRepository(db.db);
+  const providers = createProviderRegistry({
+    settingsRepo,
+    usageRepo,
+    secrets: secretService,
+    logger: log.child("providers"),
+    now: options.now,
+  });
 
   const bus = new CommandBusHost({
     contracts: ALL_CONTRACTS,
@@ -197,6 +209,8 @@ export function createServices(options: ServicesOptions): MainServices {
     projectMemory.delete(id);
   });
 
+  registerProviderHandlers(bus, providers, usageRepo);
+
   const unhandled = bus.unhandledContracts();
   if (unhandled.length > 0) {
     throw new AppError(
@@ -212,6 +226,7 @@ export function createServices(options: ServicesOptions): MainServices {
     settings: settingsService,
     secrets: secretService,
     projects,
+    providers,
     close() {
       db.close();
     },

@@ -132,3 +132,63 @@ describe("repositories", () => {
     h.close();
   });
 });
+
+describe("usage records", () => {
+  it("aggregates per model and filters by task/project", async () => {
+    const { UsageRecordsRepository, ProjectsRepository } = await import("../src/index.ts");
+    const h = openDatabase({ path: ":memory:" });
+    new ProjectsRepository(h.db).insert({
+      id: "p1",
+      name: "P",
+      path: "/x",
+      origin: "created",
+      runtimeProfile: "host",
+      createdAt: 1,
+      lastOpenedAt: 1,
+    });
+    h.sqlite
+      .prepare(
+        "INSERT INTO tasks (id, project_id, request, complexity, state, created_at, updated_at) VALUES ('t1','p1','r','standard','COMPLETE',1,1)",
+      )
+      .run();
+    const repo = new UsageRecordsRepository(h.db);
+    repo.insert({
+      id: "u1",
+      taskId: "t1",
+      providerId: "openai",
+      modelId: "gpt-5",
+      inputTokens: 100,
+      outputTokens: 50,
+      estimatedCostUsd: 0.001,
+      at: 1,
+    });
+    repo.insert({
+      id: "u2",
+      taskId: "t1",
+      providerId: "openai",
+      modelId: "gpt-5",
+      inputTokens: 100,
+      outputTokens: 50,
+      estimatedCostUsd: 0.001,
+      at: 2,
+    });
+    repo.insert({
+      id: "u3",
+      taskId: undefined,
+      providerId: "ollama",
+      modelId: "qwen",
+      inputTokens: 10,
+      outputTokens: 5,
+      estimatedCostUsd: 0,
+      at: 3,
+    });
+    const all = repo.summary();
+    expect(all.calls).toBe(3);
+    expect(all.estimatedCostUsd).toBe(0.002);
+    expect(all.byModel).toHaveLength(2);
+    expect(repo.summary({ projectId: "p1" }).calls).toBe(2);
+    expect(repo.summary({ taskId: "t1" }).inputTokens).toBe(200);
+    expect(repo.summary({ projectId: "nope" }).calls).toBe(0);
+    h.close();
+  });
+});
