@@ -228,7 +228,7 @@ describe("ProjectDatabase over PGlite", () => {
       executorFactory: () => pgliteExecutor(pglite),
       now: () => 42,
     });
-  });
+  }, 60_000); // PGlite boots a WASM Postgres; cold starts on loaded machines exceed the 10 s hook default
   afterAll(async () => {
     await db.close();
   });

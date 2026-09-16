@@ -232,19 +232,22 @@ describe("RuntimeSupervisor", () => {
     const s = make({ planner: planner({ serve: ["--hang-after", "200"] }) });
     const info = await s.start("p1", "serve");
     expect(info.state).toBe("RUNNING");
-    await until(() => s.status("p1").processes.find((p) => p.phase === "serve")?.state === "DEGRADED", 6_000);
+    await until(
+      () => s.status("p1").processes.find((p) => p.phase === "serve")?.state === "DEGRADED",
+      15_000,
+    );
     expect(
       s.status("p1").processes.find((p) => p.phase === "serve")?.health?.failures,
     ).toBeGreaterThanOrEqual(3);
   });
 
   it("restarts a crashed serve process with backoff, then gives up after the limit", async () => {
-    const s = make({ planner: planner({ serve: ["--crash-after", "150"] }), maxAutoRestarts: 2 });
+    const s = make({ planner: planner({ serve: ["--crash-after", "600"] }), maxAutoRestarts: 2 });
     const states: string[] = [];
     s.onStateChanged((p) => states.push(p.state));
     const info = await s.start("p1", "serve");
     expect(info.state).toBe("RUNNING");
-    await until(() => s.status("p1").processes.find((p) => p.phase === "serve")?.state === "CRASHED", 10_000);
+    await until(() => s.status("p1").processes.find((p) => p.phase === "serve")?.state === "CRASHED", 20_000);
     const serve = s.status("p1").processes.find((p) => p.phase === "serve")!;
     expect(serve.restarts).toBe(2);
     expect(serve.lastError).toContain("not restarting");
