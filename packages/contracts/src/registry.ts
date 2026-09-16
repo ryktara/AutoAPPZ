@@ -4,6 +4,7 @@ import * as memory from "./domains/memory.ts";
 import * as project from "./domains/project.ts";
 import * as providers from "./domains/providers.ts";
 import * as settings from "./domains/settings.ts";
+import * as tasks from "./domains/tasks.ts";
 import * as workspace from "./domains/workspace.ts";
 
 /**
@@ -51,6 +52,14 @@ export const ALL_CONTRACTS: readonly AnyDefinition[] = [
   providers.providersSettingsUpdate,
   providers.providersRoute,
   providers.usageSummary,
+  tasks.taskSubmit,
+  tasks.taskCancel,
+  tasks.taskGet,
+  tasks.taskList,
+  tasks.taskStream,
+  tasks.sessionList,
+  tasks.sessionMessages,
+  tasks.taskChanged,
 ];
 
 export function contractNames(kind?: AnyDefinition["kind"]): readonly string[] {

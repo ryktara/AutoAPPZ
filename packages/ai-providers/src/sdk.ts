@@ -59,7 +59,7 @@ export function toModelMessages(messages: readonly ChatMessage[]): ModelMessage[
   for (const m of messages) {
     switch (m.role) {
       case "system":
-        out.push({ role: "system", content: m.content });
+        // System text is passed through streamText's `system` option (see systemPromptOf); skipped here.
         break;
       case "user":
         out.push({ role: "user", content: m.content });
@@ -106,6 +106,12 @@ export function toModelMessages(messages: readonly ChatMessage[]): ModelMessage[
   return out;
 }
 
+/** The SDK takes the system prompt as an option, not as a message; several are joined in order. */
+export function systemPromptOf(messages: readonly ChatMessage[]): string | undefined {
+  const parts = messages.filter((m) => m.role === "system").map((m) => m.content);
+  return parts.length > 0 ? parts.join("\n\n") : undefined;
+}
+
 export function toToolSet(tools: readonly ToolSpec[] | undefined): ToolSet | undefined {
   if (!tools || tools.length === 0) return undefined;
   const set: ToolSet = {};
@@ -141,11 +147,13 @@ export async function* streamChat(
     return;
   }
   const tools = toToolSet(request.tools);
+  const system = systemPromptOf(request.messages);
   let result;
   try {
     result = streamText({
       model,
       messages: toModelMessages(request.messages),
+      ...(system !== undefined ? { system } : {}),
       maxRetries: options.maxRetries ?? 2,
       ...(tools !== undefined ? { tools } : {}),
       ...(request.maxOutputTokens !== undefined ? { maxOutputTokens: request.maxOutputTokens } : {}),

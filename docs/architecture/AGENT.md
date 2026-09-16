@@ -6,10 +6,12 @@ Canonical design: `docs/design/AGENT-ARCHITECTURE.md`. This page fixes the engin
 ```ts
 type TaskState = "IDLE"|"UNDERSTAND"|"EXPLORE"|"PLAN"|"AWAIT_APPROVAL"|"EXECUTE"|"VALIDATE"|"DIAGNOSE"|"REPAIR"|"REVIEW"|"CHECKPOINT"|"COMPLETE"|"CANCELLED"|"NEEDS_USER"|"INTERRUPTED";
 interface Task { id; projectId; sessionId; request; complexity: "trivial"|"standard"|"complex"; state; plan?; criteria: AcceptanceCriterion[]; changeSet; validation: ValidationReport[]; repairs: number; checkpointId?; cost: UsageSummary; createdAt; updatedAt }
-type TaskEvent = { type: "submit"|"context_sufficient"|"needs_context"|"explored"|"plan_ready"|"approved"|"revise"|"rejected"|"edits_applied"|"checks_passed"|"checks_failed"|"diagnosis_ready"|"attempts_exhausted"|"fix_applied"|"review_passed"|"review_requests_changes"|"checkpoint_created"|"cancel"|"user_input"|"process_exit"|"resume"; payload? }
+type TaskEvent = { type: "submit"|"context_sufficient"|"needs_context"|"explored"|"plan_ready"|"plan_skipped"|"approved"|"revise"|"rejected"|"edits_applied"|"checks_passed"|"checks_failed"|"diagnosis_ready"|"attempts_exhausted"|"fix_applied"|"review_passed"|"review_requests_changes"|"checkpoint_created"|"answered"|"failed"|"cancel"|"user_input"|"process_exit"|"resume"|"resume_unsafe"; payload? }
 function transition(state: TaskState, event: TaskEvent, ctx: TaskContext): { state: TaskState; effects: Effect[] }
 ```
 Effects (`runModel`, `runTool`, `runValidators`, `createCheckpoint`, `askUser`, `emit`) are executed by the core runner; each effect result re-enters as an event; every transition is journaled.
+
+Implemented in `packages/agent/src/state-machine.ts` (pure, fully tested) and driven by `packages/core` `TaskService`. `ask` tasks take the short path UNDERSTAND → EXECUTE → COMPLETE with the `answered` event; `failed` from any live state lands in NEEDS_USER.
 
 ## Role runs
 `runRole(role, task, ctx) → RoleResult` with its own `agentRunId`, model selection (router), context pack (Context Engine) and tool subset (permission-filtered). Prompts are versioned templates in `packages/agent/prompts` with snapshot tests.

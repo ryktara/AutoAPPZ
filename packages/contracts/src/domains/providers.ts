@@ -51,6 +51,8 @@ export const ProviderConfigSchema = z.object({
   credentialId: z.string().min(1).optional(),
   baseUrl: z.url().optional(),
   defaultModelId: z.string().min(1).optional(),
+  /** Models listed by the provider at the last successful validation; survives restarts. */
+  discoveredModels: z.array(ModelDescriptorSchema).optional(),
 });
 export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
 

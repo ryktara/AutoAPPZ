@@ -50,6 +50,8 @@ export interface ProviderRegistryOptions {
   fetch?: FetchLike | undefined;
   now?: (() => number) | undefined;
   newId?: (() => string) | undefined;
+  /** Transport retries for 429/5xx per chat call (default 2). */
+  maxRetries?: number | undefined;
   /** Test seam: replace adapters. */
   createProvider?: ((id: ProviderId) => ModelProvider) | undefined;
 }
@@ -73,6 +75,7 @@ export class ProviderRegistry {
   private readonly log: Logger | undefined;
   private readonly now: () => number;
   private readonly newId: () => string;
+  private readonly maxRetries: number | undefined;
 
   constructor(options: ProviderRegistryOptions) {
     this.settings = options.settings;
@@ -81,6 +84,7 @@ export class ProviderRegistry {
     this.log = options.logger;
     this.now = options.now ?? Date.now;
     this.newId = options.newId ?? defaultId;
+    this.maxRetries = options.maxRetries;
     const create =
       options.createProvider ??
       ((id: ProviderId) => new GenericProvider(id, { fetch: options.fetch, now: options.now }));
@@ -129,6 +133,8 @@ export class ProviderRegistry {
     if (credentialId !== undefined) next.credentialId = credentialId;
     if (baseUrl !== undefined) next.baseUrl = baseUrl;
     if (defaultModelId !== undefined) next.defaultModelId = defaultModelId;
+    const connectionChanged = input.credentialId !== undefined || input.baseUrl !== undefined;
+    if (!connectionChanged && existing.discoveredModels) next.discoveredModels = existing.discoveredModels;
     this.settings.set({
       ...current,
       providers: [...current.providers.filter((p) => p.providerId !== input.providerId), next],
@@ -181,7 +187,9 @@ export class ProviderRegistry {
     this.lastValidation.set(id, outcome);
     if (outcome.ok) {
       try {
-        this.discovered.set(id, await provider.listModels(config, signal));
+        const models = await provider.listModels(config, signal);
+        this.discovered.set(id, models);
+        this.persistDiscovered(id, models);
       } catch (error) {
         this.log?.warn("model discovery failed after validation", {
           providerId: id,
@@ -199,7 +207,7 @@ export class ProviderRegistry {
     const out: ModelDescriptor[] = [];
     for (const pid of ids) {
       if (onlyReady && !this.status(pid).ready) continue;
-      out.push(...(this.discovered.get(pid) ?? catalogModels(pid)));
+      out.push(...(this.discovered.get(pid) ?? this.configFor(pid).discoveredModels ?? catalogModels(pid)));
     }
     return out;
   }
@@ -237,7 +245,7 @@ export class ProviderRegistry {
     for await (const chunk of provider.chat(
       config,
       { ...request, modelId: ref.modelId },
-      { signal: ctx.signal },
+      { signal: ctx.signal, maxRetries: this.maxRetries },
     )) {
       if (chunk.type === "finish") {
         this.usage.record({
@@ -260,6 +268,18 @@ export class ProviderRegistry {
     const p = this.providers.get(id);
     if (!p) throw new AppError("not_found", "providers.unknown", `Unknown provider ${id}`);
     return p;
+  }
+
+  private persistDiscovered(id: ProviderId, models: ModelDescriptor[]): void {
+    const current = this.settings.get();
+    const existing = this.configFor(id);
+    this.settings.set({
+      ...current,
+      providers: [
+        ...current.providers.filter((p) => p.providerId !== id),
+        { ...existing, discoveredModels: models },
+      ],
+    });
   }
 
   private configFor(id: ProviderId): ProviderConfig {

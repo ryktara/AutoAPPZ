@@ -22,6 +22,8 @@ import {
 import { SecretService, type Cipher } from "@autoappz/secrets";
 import type { ProviderRegistry } from "@autoappz/ai-providers";
 import { createProviderRegistry, registerProviderHandlers } from "./providers-wiring.ts";
+import { createTaskService, registerTaskHandlers } from "./tasks-wiring.ts";
+import type { TaskService } from "@autoappz/core";
 import {
   BlueprintsRepository,
   PLATFORM_DB_FILENAME,
@@ -51,6 +53,7 @@ export interface MainServices {
   readonly secrets: SecretService;
   readonly projects: ProjectCatalog;
   readonly providers: ProviderRegistry;
+  readonly tasks: TaskService;
   close(): void;
 }
 
@@ -210,6 +213,17 @@ export function createServices(options: ServicesOptions): MainServices {
   });
 
   registerProviderHandlers(bus, providers, usageRepo);
+  const taskWiring = createTaskService({
+    db: db.db,
+    usageRepo,
+    providers,
+    projects,
+    memory: projectMemory,
+    blueprints,
+    logger: log.child("tasks"),
+    now: options.now,
+  });
+  registerTaskHandlers(bus, taskWiring.service, taskWiring.sessions, taskWiring.messages);
 
   const unhandled = bus.unhandledContracts();
   if (unhandled.length > 0) {
@@ -227,6 +241,7 @@ export function createServices(options: ServicesOptions): MainServices {
     secrets: secretService,
     projects,
     providers,
+    tasks: taskWiring.service,
     close() {
       db.close();
     },

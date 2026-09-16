@@ -9,6 +9,13 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@autoappz/contracts": "workspace:*"
+    "@autoappz/agent": "workspace:*",
+    "@autoappz/ai-providers": "workspace:*",
+    "@autoappz/contracts": "workspace:*",
+    "@autoappz/diagnostics": "workspace:*",
+    "@autoappz/storage": "workspace:*"
+  },
+  "devDependencies": {
+    "@autoappz/testing": "workspace:*"
   }
 }

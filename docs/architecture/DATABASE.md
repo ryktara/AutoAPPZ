@@ -14,7 +14,7 @@ SQLite (`better-sqlite3`, WAL, foreign keys) + Drizzle ORM; hand-written SQL mig
 | `acceptance_criteria` | `id PK, requirementId FK, text, status, evidence(json)` |
 | `sessions` | `id PK, projectId FK, title, createdAt, lastActiveAt` |
 | `messages` | `id PK, sessionId FK, role, content, taskId?, createdAt` |
-| `tasks` | `id PK, projectId, sessionId, request, complexity, state, plan(json), checkpointId?, cost(json), createdAt, updatedAt, terminalAt` |
+| `tasks` | `id PK, projectId, sessionId, mode(ask\|build), request, complexity, state, plan(json), checkpointId?, cost(json), model(json ModelRef)?, error?, createdAt, updatedAt, terminalAt` (`mode/model/error` added by migration 0002) |
 | `task_events` | `taskId FK, seq, fromState, toState, event, payload(json), at` (append-only) |
 | `agent_runs` | `id PK, taskId, role, provider, model, tokens, cost, startedAt, endedAt, status` |
 | `tool_calls` | `id PK, taskId, agentRunId, toolId, capability, scope(json), decision, decisionSource, inputRedacted(json), resultSummary, durationMs, at` (audit, append-only) |

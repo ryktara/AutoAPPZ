@@ -38,6 +38,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@autoappz/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
       '@autoappz/ai-providers':
         specifier: workspace:*
         version: link:../../packages/ai-providers
@@ -175,9 +178,25 @@ importers:
 
   packages/core:
     dependencies:
+      '@autoappz/agent':
+        specifier: workspace:*
+        version: link:../agent
+      '@autoappz/ai-providers':
+        specifier: workspace:*
+        version: link:../ai-providers
       '@autoappz/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@autoappz/diagnostics':
+        specifier: workspace:*
+        version: link:../diagnostics
+      '@autoappz/storage':
+        specifier: workspace:*
+        version: link:../storage
+    devDependencies:
+      '@autoappz/testing':
+        specifier: workspace:*
+        version: link:../testing
 
   packages/diagnostics:
     dependencies:

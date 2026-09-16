@@ -11,6 +11,13 @@ export { ProjectsRepository } from "./repositories/projects.ts";
 export { BlueprintsRepository, RequirementsRepository } from "./repositories/blueprints.ts";
 export { ProjectMemoryRepository } from "./repositories/project-memory.ts";
 export { UsageRecordsRepository } from "./repositories/usage-records.ts";
+export {
+  MessagesRepository,
+  SessionsRepository,
+  TaskEventsRepository,
+  TasksRepository,
+} from "./repositories/tasks.ts";
+export type { TaskEventRow } from "./repositories/tasks.ts";
 export type { UsageRecordRow } from "./repositories/usage-records.ts";
 export { SettingsService } from "./settings-service.ts";
 export type { UserSettingsPatch } from "./settings-service.ts";

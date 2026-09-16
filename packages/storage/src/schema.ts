@@ -136,6 +136,9 @@ export const tasks = sqliteTable(
     plan: text("plan"), // JSON
     checkpointId: text("checkpoint_id"),
     cost: text("cost"), // JSON
+    model: text("model"), // JSON ModelRef (0002)
+    error: text("error"), // (0002)
+    mode: text("mode").notNull().default("ask"), // (0002)
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
     terminalAt: integer("terminal_at"),

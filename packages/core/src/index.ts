@@ -42,3 +42,7 @@ export class ServiceContainer<TServices extends object> {
     return this.factories.has(key);
   }
 }
+
+export { TaskEventHub } from "./task-event-hub.ts";
+export { TaskService } from "./task-service.ts";
+export type { ProjectContextSource, TaskChange, TaskServiceOptions } from "./task-service.ts";

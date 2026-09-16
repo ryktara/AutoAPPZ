@@ -9,3 +9,4 @@ export * as project from "./domains/project.ts";
 export * as blueprint from "./domains/blueprint.ts";
 export * as memory from "./domains/memory.ts";
 export * as providers from "./domains/providers.ts";
+export * as tasks from "./domains/tasks.ts";

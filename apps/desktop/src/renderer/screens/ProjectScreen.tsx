@@ -1,4 +1,7 @@
 import { useId, useMemo, useState } from "react";
+import { RequestPane } from "./project/RequestPane.tsx";
+import { TranscriptPanel } from "./project/TranscriptPanel.tsx";
+import { useTaskStream } from "../state/use-task-stream.ts";
 import { blueprint, memory, project } from "@autoappz/contracts";
 
 type MemoryCategory = memory.MemoryCategory;
@@ -19,6 +22,7 @@ import { useCommand, useQuery } from "../state/hooks.ts";
 import { useRouter } from "../state/router.ts";
 
 const WORK_TABS = [
+  { id: "transcript", label: "Transcript" },
   { id: "plan", label: "Plan" },
   { id: "execution", label: "Execution" },
   { id: "changes", label: "Changes" },
@@ -39,7 +43,9 @@ type DockTab = (typeof DOCK_TABS)[number]["id"];
 export function ProjectScreen({ id }: { readonly id: string }) {
   const input = useMemo(() => ({ id }), [id]);
   const p = useQuery(project.projectGet, input);
-  const [tab, setTab] = useState<WorkTab>("plan");
+  const [tab, setTab] = useState<WorkTab>("transcript");
+  const [activeTaskId, setActiveTaskId] = useState<string | undefined>();
+  const live = useTaskStream(activeTaskId);
   const [dock, setDock] = useState<DockTab>("problems");
   const { navigate } = useRouter();
 
@@ -84,16 +90,7 @@ export function ProjectScreen({ id }: { readonly id: string }) {
 
       <section className="az-pane az-pane-request" aria-label="Request">
         <h2 className="az-pane-title">Request</h2>
-        <TextArea
-          rows={8}
-          placeholder="Describe what you want to build or change…"
-          disabled
-          aria-describedby="request-hint"
-        />
-        <p id="request-hint" className="az-field-hint">
-          The agent arrives in a later milestone. Until then, use the Blueprint and Memory tabs to capture
-          what the app should be.
-        </p>
+        <RequestPane projectId={id} activeTaskId={activeTaskId} live={live} onTaskStarted={setActiveTaskId} />
       </section>
 
       <section className="az-pane az-pane-work" aria-label="Work">
@@ -105,7 +102,9 @@ export function ProjectScreen({ id }: { readonly id: string }) {
           }}
         />
         <div className="az-pane-body">
-          {tab === "blueprint" ? (
+          {tab === "transcript" ? (
+            <TranscriptPanel projectId={id} activeTaskId={activeTaskId} live={live} />
+          ) : tab === "blueprint" ? (
             <BlueprintPanel projectId={id} />
           ) : tab === "memory" ? (
             <MemoryPanel projectId={id} />
@@ -146,7 +145,7 @@ export function ProjectScreen({ id }: { readonly id: string }) {
   );
 }
 
-const EMPTY_COPY: Record<Exclude<WorkTab, "blueprint" | "memory" | "project">, string> = {
+const EMPTY_COPY: Record<Exclude<WorkTab, "transcript" | "blueprint" | "memory" | "project">, string> = {
   plan: "Plans appear here once a request is submitted.",
   execution: "Tool activity streams here while the agent works.",
   changes: "File changes with undo will be listed here.",
