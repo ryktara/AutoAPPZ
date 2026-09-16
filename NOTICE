@@ -1,0 +1,10 @@
+AutoAPPZ
+Copyright (c) 2026 AutoAPPZ contributors.
+
+This product includes software developed by third parties under their own
+licenses. The list of bundled dependencies and their license notices is
+generated at release time from the lockfile (see docs/development/RELEASE.md)
+and shipped with each distributable.
+
+No source code, prompts, assets, or branding from any other AI application
+builder are included in this project. See docs/legal/REFERENCE-LICENSE-AUDIT.md.
