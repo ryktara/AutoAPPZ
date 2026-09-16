@@ -77,3 +77,33 @@ test("secrets are stored by reference and never echoed to the page", async () =>
   await list.getByRole("button", { name: "Delete" }).click();
   await expect(page.getByText("No secrets stored yet.")).toBeVisible();
 });
+
+test("extensions: a plugin installs from a folder, activates with granted capabilities, and MCP servers are listed", async () => {
+  await page.getByRole("button", { name: "Settings" }).click();
+  const pluginsCard = page.getByRole("region", { name: "Plugins" });
+  await expect(pluginsCard).toContainText("No plugins installed.");
+  await pluginsCard
+    .getByLabel("Plugin folder")
+    .fill(path.resolve(appDir, "../../examples/plugins/word-count"));
+  await pluginsCard.getByRole("button", { name: "Install" }).click();
+  const row = page.getByTestId("plugin-word-count");
+  await expect(row).toContainText("Word count");
+  await expect(row).toContainText("inactive");
+  await row.getByLabel("tools.register").check();
+  await row.getByRole("button", { name: "Enable" }).click();
+  await expect(row).toContainText("active");
+  await expect(row).toContainText("word-count.count");
+  await row.getByRole("button", { name: "Disable" }).click();
+  await expect(row).toContainText("inactive");
+
+  const mcpCard = page.getByRole("region", { name: "MCP servers" });
+  await expect(mcpCard).toContainText("No MCP servers configured.");
+  await mcpCard.getByLabel("Name").fill("Local echo");
+  await mcpCard.getByLabel("Command").fill("definitely-not-a-command-xyz");
+  await mcpCard.getByRole("button", { name: "Add server" }).click();
+  const servers = page.getByRole("list", { name: "MCP servers" });
+  await expect(servers).toContainText("Local echo");
+  await servers.getByRole("button", { name: "Connect" }).click();
+  await expect(servers).toContainText("error");
+  await expect(servers).toContainText("was not found on PATH");
+});

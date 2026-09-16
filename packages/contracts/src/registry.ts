@@ -4,6 +4,8 @@ import * as context from "./domains/context.ts";
 import * as validation from "./domains/validation.ts";
 import * as integrations from "./domains/integrations.ts";
 import * as deployment from "./domains/deployment.ts";
+import * as mcp from "./domains/mcp.ts";
+import * as plugins from "./domains/plugins.ts";
 import * as git from "./domains/git.ts";
 import * as memory from "./domains/memory.ts";
 import * as permissions from "./domains/permissions.ts";
@@ -129,6 +131,19 @@ export const ALL_CONTRACTS: readonly AnyDefinition[] = [
   deployment.deployEvents,
   deployment.deployHistory,
   deployment.deployChanged,
+  mcp.mcpServers,
+  mcp.mcpUpsert,
+  mcp.mcpDelete,
+  mcp.mcpConnect,
+  mcp.mcpDisconnect,
+  mcp.mcpTools,
+  mcp.mcpChanged,
+  plugins.pluginsList,
+  plugins.pluginsInstall,
+  plugins.pluginsSetEnabled,
+  plugins.pluginsGrant,
+  plugins.pluginsRemove,
+  plugins.pluginsChanged,
 ];
 
 export function contractNames(kind?: AnyDefinition["kind"]): readonly string[] {

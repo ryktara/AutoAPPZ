@@ -42,13 +42,6 @@ export function databaseAdapter(id: DatabaseAdapterId): DatabaseAdapter {
   return adapter;
 }
 
-// ---- interfaces for later milestones (M13 MCP)
-export interface McpClient {
-  listTools(): Promise<readonly { name: string; description: string }[]>;
-  call(tool: string, input: unknown, signal: AbortSignal): Promise<unknown>;
-  close(): Promise<void>;
-}
-
 // ---- deployment (M12)
 export type {
   DeployEvent,
@@ -100,3 +93,11 @@ export function deploymentAdapter(
   if (!adapter) throw new Error(`Unknown deployment adapter ${id}`);
   return adapter;
 }
+
+// ---- MCP (M13)
+export { DEFAULT_MCP_TIMEOUT_MS, McpConnection } from "./mcp/client.ts";
+export type { ConnectOptions, McpCallResult, McpServerConfig, McpToolInfo } from "./mcp/client.ts";
+export { LoopbackOAuthProvider } from "./mcp/loopback-oauth.ts";
+export type { LoopbackOAuthOptions, OAuthState } from "./mcp/loopback-oauth.ts";
+export { MCP_TOOL_PREFIX, bridgeMcpTools, mcpToolId, riskFor } from "./mcp/bridge.ts";
+export type { BridgeOptions } from "./mcp/bridge.ts";

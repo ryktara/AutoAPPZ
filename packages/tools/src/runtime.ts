@@ -53,6 +53,8 @@ export interface AnyTool {
   readonly id: string;
   readonly description: string;
   readonly inputSchema: SchemaLike;
+  /** JSON Schema for the model when the tool did not come from a zod schema (MCP tools). */
+  readonly inputJsonSchema?: Record<string, unknown> | undefined;
   readonly outputSchema: SchemaLike;
   readonly permission: PermissionDescriptor<never>;
   readonly timeoutMs: number;
@@ -110,6 +112,17 @@ export class ToolRuntime {
     }
   }
 
+  /** Adds a tool at runtime (MCP servers, plugins). Ids must stay unique. */
+  register(tool: AnyTool): void {
+    if (this.tools.has(tool.id))
+      throw new AppError("conflict", "tools.duplicate", `Duplicate tool id ${tool.id}`);
+    this.tools.set(tool.id, tool);
+  }
+
+  unregister(id: string): boolean {
+    return this.tools.delete(id);
+  }
+
   list(): AnyTool[] {
     return [...this.tools.values()];
   }
@@ -123,7 +136,7 @@ export class ToolRuntime {
     return this.list().map((t) => ({
       name: t.id,
       description: t.description,
-      inputSchema: zodToJsonSchema(t.inputSchema),
+      inputSchema: t.inputJsonSchema ?? zodToJsonSchema(t.inputSchema),
     }));
   }
 

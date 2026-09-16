@@ -23,6 +23,7 @@
     "@autoappz/git": "workspace:*",
     "@autoappz/integrations": "workspace:*",
     "@autoappz/permissions": "workspace:*",
+    "@autoappz/plugins": "workspace:*",
     "@autoappz/project": "workspace:*",
     "@autoappz/runtime": "workspace:*",
     "@autoappz/secrets": "workspace:*",

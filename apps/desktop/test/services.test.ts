@@ -10,7 +10,7 @@ import { createServices } from "../src/main/services.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATES_DIR = path.resolve(here, "../../../templates");
-const fakeHost = { pickDirectory: () => Promise.resolve(null) };
+const fakeHost = { pickDirectory: () => Promise.resolve(null), openExternal: () => Promise.resolve() };
 
 const FIXTURE_SECRET = "sk-fixture-value-that-must-never-leak-0987654321";
 

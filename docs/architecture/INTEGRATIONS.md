@@ -34,3 +34,13 @@ Canonical decision: `docs/adr/ADR-015-deployment-adapters.md`.
 - Desktop: `deployment-wiring.ts` — targets and deployments repositories, env requirements (template `env[]` + `DATABASE_URL` from the attached database + per-target secrets), readiness (with git status and the latest validation), one running deployment at a time, live event journal with replay from the persisted record, handlers (`deploy.adapters/targets/upsertTarget/deleteTarget/setEnv/discover/readiness/run/cancel/history`, stream `deploy.events`). The Project tab's **Deploy** card manages targets, env values, the checklist, live logs and history.
 - Templates: `nextjs` (App Router, Vitest) and `dashboard` (KPIs, SVG chart, sortable table) added; every template ships the `Dockerfile`/`.dockerignore` the Docker target generates; CI runs the portability check for all four and builds each image (`docker-build` job).
 - Deferred: `saas` template (needs the payments integration design), registry push for Docker images, deployment logs beyond 100 kB, provider-side build logs, GitHub VCS adapter (M13/M14).
+
+## Implementation notes — MCP and plugins (M13)
+
+Canonical decision: `docs/adr/ADR-016-mcp-and-plugins.md`.
+
+- `packages/integrations/src/mcp`: `McpConnection` (stdio via argument arrays + env allowlist, Streamable HTTP with bearer or OAuth; listTools with annotations; callTool with timeout and bounded text), `LoopbackOAuthProvider` (PKCE by the SDK, loopback redirect, persisted client registration + tokens), `bridgeMcpTools` (agent tools under `mcp.call`, risk from annotations, untrusted-data wrapping).
+- `packages/plugins`: SDK types (`PluginContext`, `PluginModule`, `PLUGIN_SDK_VERSION`), `loadPluginManifest`, `forbiddenImports`, `activatePlugin` (capability gate, tool namespace check, minHostVersion). Sample plugin: `examples/plugins/word-count`.
+- Desktop: `mcp-wiring.ts` (repository, secret resolution, reconnect at startup for enabled non-OAuth servers, tools registered/unregistered on connect/disconnect) and `plugins-wiring.ts` (settings-backed registry, install validates before recording, enable activates, grants trimmed to the manifest). Settings → **Extensions** manages both. `ToolRuntime` gained `register/unregister` and JSON-Schema passthrough for non-zod tools.
+- Tests: fake stdio MCP server fixture, fake Streamable HTTP server with a minimal OAuth authorization server (registration, authorize redirect, token), bridge + consent behaviour through the tool runtime, plugin capability enforcement and forbidden-import refusal; e2e installs the sample plugin and adds an MCP server.
+- Deferred: signed plugin registry, validator/template/UI-panel contributions in the host, MCP resources and prompts, per-project MCP servers, SSE (legacy) transport.

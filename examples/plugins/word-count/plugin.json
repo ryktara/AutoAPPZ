@@ -1,0 +1,9 @@
+{
+  "id": "word-count",
+  "version": "1.0.0",
+  "displayName": "Word count",
+  "description": "Sample plugin: adds a tool that counts words, lines and characters in text the agent passes in.",
+  "entry": "index.mjs",
+  "capabilities": ["tools.register"],
+  "minHostVersion": "0.0.0"
+}

@@ -28,6 +28,8 @@ import { createContextWiring, registerContextHandlers } from "./context-wiring.t
 import { createValidationWiring, registerValidationHandlers } from "./validation-wiring.ts";
 import { createIntegrationsWiring } from "./integrations-wiring.ts";
 import { createDeploymentWiring } from "./deployment-wiring.ts";
+import { createMcpWiring } from "./mcp-wiring.ts";
+import { createPluginsWiring } from "./plugins-wiring.ts";
 import { summarizeReport } from "@autoappz/validation";
 import type { TaskService } from "@autoappz/core";
 import type { PermissionEngine } from "@autoappz/permissions";
@@ -58,11 +60,14 @@ import {
   IntegrationsRepository,
   DeploymentTargetsRepository,
   DeploymentsRepository,
+  McpServersRepository,
   type DatabaseHandle,
 } from "@autoappz/storage";
 
 /** Capabilities only the desktop host can provide (native dialogs, …). Tests pass fakes. */
 export interface HostCapabilities {
+  /** Opens a URL in the user's default browser (OAuth sign-in for MCP servers). */
+  openExternal(url: string): Promise<void>;
   pickDirectory(input: {
     title?: string | undefined;
     defaultPath?: string | undefined;
@@ -347,6 +352,24 @@ export function createServices(options: ServicesOptions): MainServices {
     logger: log.child("deploy"),
     now: options.now,
   });
+  const mcpWiring = createMcpWiring({
+    bus,
+    repo: new McpServersRepository(db.db),
+    secrets: secretService,
+    tools,
+    logger: log.child("mcp"),
+    appVersion: options.appVersion,
+    openExternal: (url) => options.host.openExternal(url),
+    now: options.now,
+  });
+  const pluginsWiring = createPluginsWiring({
+    bus,
+    settings: settingsRepo,
+    tools,
+    logger: log.child("plugins"),
+    appVersion: options.appVersion,
+    now: options.now,
+  });
   // Managed projects start with an initial commit so the first task has a base to diff against.
   projects.onChange((change) => {
     if (change.kind !== "created") return;
@@ -395,6 +418,8 @@ export function createServices(options: ServicesOptions): MainServices {
     runtime,
     async close() {
       await runtime.stopAll();
+      await mcpWiring.close();
+      await pluginsWiring.close();
       await deploymentWiring.close();
       await integrationsWiring.close();
       contextWiring.close();

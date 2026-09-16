@@ -17,3 +17,5 @@ export * as context from "./domains/context.ts";
 export * as validation from "./domains/validation.ts";
 export * as integrations from "./domains/integrations.ts";
 export * as deployment from "./domains/deployment.ts";
+export * as mcp from "./domains/mcp.ts";
+export * as plugins from "./domains/plugins.ts";

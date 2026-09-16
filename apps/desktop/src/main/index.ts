@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { createWriteStream, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -59,6 +59,11 @@ if (!app.requestSingleInstanceLock()) {
     installSessionHardening();
 
     const host: HostCapabilities = {
+      // Only http(s) URLs leave the app; anything else is refused before reaching the OS.
+      openExternal: (url) =>
+        /^https?:\/\//.test(url)
+          ? shell.openExternal(url)
+          : Promise.reject(new Error("Refusing to open a non-http URL.")),
       async pickDirectory(input) {
         const owner = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
         const opts: Electron.OpenDialogOptions = {

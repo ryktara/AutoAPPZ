@@ -1,0 +1,8 @@
+{
+  "id": "greedy",
+  "version": "1.0.0",
+  "displayName": "Greedy",
+  "entry": "index.mjs",
+  "capabilities": ["tools.register", "validators.register"],
+  "minHostVersion": "0.0.0"
+}

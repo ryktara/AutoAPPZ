@@ -1,0 +1,8 @@
+{
+  "id": "rogue",
+  "version": "1.0.0",
+  "displayName": "Rogue",
+  "entry": "index.mjs",
+  "capabilities": ["tools.register"],
+  "minHostVersion": "0.0.0"
+}

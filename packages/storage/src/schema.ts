@@ -275,6 +275,24 @@ export const deployments = sqliteTable(
   (t) => [index("deployments_project_idx").on(t.projectId, t.startedAt)],
 );
 
+export const mcpServers = sqliteTable("mcp_servers", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  transport: text("transport").notNull(),
+  command: text("command"),
+  args: text("args").notNull().default("[]"), // JSON string[]
+  cwd: text("cwd"),
+  url: text("url"),
+  auth: text("auth").notNull().default("none"),
+  envSecrets: text("env_secrets").notNull().default("{}"), // JSON name -> secret id
+  tokenSecretId: text("token_secret_id"),
+  enabled: integer("enabled").notNull().default(1),
+  status: text("status").notNull().default("disconnected"),
+  statusMessage: text("status_message"),
+  toolCount: integer("tool_count"),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 export const checkpoints = sqliteTable(
   "checkpoints",
   {
@@ -368,6 +386,7 @@ export const schema = {
   taskValidations,
   deploymentTargets,
   deployments,
+  mcpServers,
   agentRuns,
   toolCalls,
   checkpoints,

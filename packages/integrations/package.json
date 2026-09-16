@@ -11,14 +11,15 @@
   "dependencies": {
     "@autoappz/contracts": "workspace:*",
     "@autoappz/diagnostics": "workspace:*",
+    "@autoappz/runtime": "workspace:*",
     "@autoappz/tools": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "pg": "^8.23.0",
-    "zod": "^4.3.0",
-    "@autoappz/runtime": "workspace:*"
+    "zod": "^4.3.0"
   },
   "devDependencies": {
+    "@autoappz/testing": "workspace:*",
     "@electric-sql/pglite": "^0.5.8",
-    "@types/pg": "^8.23.1",
-    "@autoappz/testing": "workspace:*"
+    "@types/pg": "^8.23.1"
   }
 }
