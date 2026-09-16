@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -114,6 +122,25 @@ describe("ProjectCatalog", () => {
       catalog.delete({ id: b.id, deleteFiles: false });
       expect(existsSync(b.path)).toBe(true);
       expect(() => catalog.get(b.id)).toThrow(/not found/);
+      await Promise.resolve();
+    });
+  });
+
+  it("stores canonical project paths when a directory is reached through a link", async () => {
+    await withTempDir(async (root) => {
+      const { catalog, homeDirectory } = setup(root);
+      const real = path.join(homeDirectory, "real-parent");
+      mkdirSync(real, { recursive: true });
+      const link = path.join(homeDirectory, "linked-parent");
+      try {
+        symlinkSync(real, link, "junction");
+      } catch {
+        return; // symlink creation not permitted in this environment
+      }
+      const created = catalog.create({ name: "Via Link", templateId: "react-vite", parentDirectory: link });
+      expect(created.path).toBe(path.join(realpathSync.native(real), "via-link"));
+      const imported = catalog.import({ sourcePath: path.join(link, "via-link"), mode: "in_place" });
+      expect(imported.path).toBe(created.path);
       await Promise.resolve();
     });
   });

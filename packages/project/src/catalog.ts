@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, realpathSync, rmSync } from "node:fs";
 import path from "node:path";
 import { AppError, project as contracts } from "@autoappz/contracts";
 import type { Logger } from "@autoappz/diagnostics";
@@ -78,8 +78,12 @@ export class ProjectCatalog {
 
   create(input: { name: string; templateId: string; parentDirectory?: string | undefined }): Project {
     const name = contracts.ProjectNameSchema.parse(input.name);
-    const parent = assertAllowedProjectDirectory(input.parentDirectory ?? this.defaultParent(), this.policy);
-    mkdirSync(parent, { recursive: true });
+    const requestedParent = assertAllowedProjectDirectory(
+      input.parentDirectory ?? this.defaultParent(),
+      this.policy,
+    );
+    mkdirSync(requestedParent, { recursive: true });
+    const parent = assertAllowedProjectDirectory(canonicalDirectory(requestedParent), this.policy);
     const dir = assertAllowedProjectDirectory(uniqueChildDirectory(parent, slugify(name)), this.policy);
     assertEmptyOrMissing(dir);
 
@@ -114,18 +118,19 @@ export class ProjectCatalog {
     name?: string | undefined;
     parentDirectory?: string | undefined;
   }): Project {
-    const source = assertAllowedProjectDirectory(input.sourcePath, this.policy);
-    assertExistingDirectory(source);
+    assertExistingDirectory(assertAllowedProjectDirectory(input.sourcePath, this.policy));
+    const source = assertAllowedProjectDirectory(canonicalDirectory(input.sourcePath), this.policy);
     const name = contracts.ProjectNameSchema.parse(input.name ?? path.basename(source));
 
     let dir = source;
     let origin: Project["origin"] = "imported";
     if (input.mode === "copy") {
-      const parent = assertAllowedProjectDirectory(
+      const requestedParent = assertAllowedProjectDirectory(
         input.parentDirectory ?? this.defaultParent(),
         this.policy,
       );
-      mkdirSync(parent, { recursive: true });
+      mkdirSync(requestedParent, { recursive: true });
+      const parent = assertAllowedProjectDirectory(canonicalDirectory(requestedParent), this.policy);
       dir = assertAllowedProjectDirectory(uniqueChildDirectory(parent, slugify(name)), this.policy);
       assertEmptyOrMissing(dir);
       cpSync(source, dir, {
@@ -220,4 +225,17 @@ function defaultId(): string {
   let out = "prj_";
   for (const b of bytes) out += b.toString(16).padStart(2, "0");
   return out;
+}
+
+/**
+ * The canonical (symlink-resolved, long-name) form of a directory. Project roots are handed to file watchers
+ * and child processes; on Windows, libuv's watcher asserts when a watched directory is addressed through an
+ * 8.3 short name (e.g. `C:\Users\RUNNER~1\...`), and on macOS `/var` is a symlink to `/private/var`.
+ */
+function canonicalDirectory(dir: string): string {
+  try {
+    return realpathSync.native(dir);
+  } catch {
+    return dir;
+  }
 }
