@@ -213,6 +213,16 @@ describe("RuntimeSupervisor", () => {
     expect(states).toEqual(["STARTING", "RUNNING", "STOPPING", "STOPPED"]);
   });
 
+  it("reaches a dev server that listens on ::1 only and proxies the preview to it", async () => {
+    const s = make({ planner: planner({ serve: ["--host", "::1"] }) });
+    const info = await s.start("p1", "serve");
+    expect(info.state).toBe("RUNNING");
+    expect(info.previewUrl).toMatch(/^http:\/\/127\.0\.0\.1:42\d{3}\/$/);
+    const html = await (await fetch(info.previewUrl!)).text();
+    expect(html).toContain("hello");
+    await s.stop("p1", "serve");
+  });
+
   it("install: attributes failures to the phase with structured diagnostics", async () => {
     const s = make({ planner: planner({ install: ["--fail"] }) });
     const diags: contracts.RuntimeDiagnostic[] = [];

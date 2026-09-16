@@ -2,6 +2,7 @@
 //   --port N         listen on N (default 0)
 //   --hang-after MS  stop answering HTTP after MS (health degrades)
 //   --crash-after MS exit(1) after MS
+//   --host H         bind address (default 127.0.0.1; "::1" mimics dev servers whose localhost is IPv6-only)
 //   --fail           print an error and exit(2) immediately
 //   --spawn-child    spawn a long-lived child (tree-kill test); prints "child <pid>"
 import { createServer } from "node:http";
@@ -43,6 +44,8 @@ const server = createServer((req, res) => {
   res.writeHead(200, { "content-type": "text/plain" });
   res.end("ok");
 });
-server.listen(port, "127.0.0.1", () => {
-  console.log(`  Local:   http://127.0.0.1:${server.address().port}/`);
+const host = opt("--host") ?? "127.0.0.1";
+server.listen(port, host, () => {
+  const shown = host.includes(":") ? `[${host}]` : host;
+  console.log(`  Local:   http://${shown}:${server.address().port}/`);
 });

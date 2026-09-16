@@ -290,6 +290,15 @@ export class RuntimeSupervisor {
     managed.timeoutTimer = setTimeout(() => {
       if (managed.info.state === "STARTING" || (phase !== "serve" && managed.info.state === "RUNNING")) {
         rt.output.push(phase, "system", `Timed out after ${String(Math.round(plan.timeoutMs / 1000))} s.`);
+        this.o.logger?.warn("process timed out", {
+          projectId,
+          phase,
+          state: managed.info.state,
+          tail: rt.output
+            .list({ phase, limit: 12 })
+            .map((l) => l.text)
+            .join("\n"),
+        });
         managed.info = { ...managed.info, exit: { code: null, signal: null, classified: "timeout" } };
         void this.stop(projectId, phase).then(() => {
           managed.info = { ...managed.info, state: "CRASHED", lastError: "Timed out" };
@@ -320,31 +329,48 @@ export class RuntimeSupervisor {
     port: number,
     timeoutMs: number,
   ): Promise<void> {
-    let url = `http://127.0.0.1:${String(port)}/`;
+    // Dev servers bound to "localhost" may listen on ::1 only (Windows resolvers, some Node versions), so
+    // both loopback families are probed and the preview proxy targets whichever answered.
+    const hosts = ["127.0.0.1", "::1"] as const;
+    const urlFor = (host: string, p: number) =>
+      `http://${host.includes(":") ? `[${host}]` : host}:${String(p)}/`;
+    let host: string = hosts[0];
+    let url = urlFor(host, port);
     const interval = this.o.readinessIntervalMs ?? 250;
     const deadline = this.now() + timeoutMs;
     // Dev servers that ignore the leased port still print where they listen; adopt that as a fallback.
     let announced: number | undefined;
     const offOutput = rt.output.subscribe((line) => {
       if (line.phase !== "serve") return;
-      const m = /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d{2,5})\/?/.exec(line.text);
+      const m = /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1?\]):(\d{2,5})\/?/.exec(line.text);
       if (m?.[1]) announced = Number(m[1]);
     });
     try {
       while (managed.info.state === "STARTING" && this.now() < deadline) {
-        let ok = await this.probe(url);
+        let ok = false;
+        for (const h of hosts) {
+          if (await this.probe(urlFor(h, port))) {
+            host = h;
+            url = urlFor(h, port);
+            ok = true;
+            break;
+          }
+        }
         if (!ok && announced !== undefined && announced !== port) {
-          const alt = `http://127.0.0.1:${String(announced)}/`;
-          if (await this.probe(alt)) {
+          for (const h of hosts) {
+            const alt = urlFor(h, announced);
+            if (!(await this.probe(alt))) continue;
             rt.output.push(
               "serve",
               "system",
               `The dev server listens on ${String(announced)} instead of the leased port ${String(port)}; using it.`,
             );
             port = announced;
+            host = h;
             url = alt;
             managed.info = { ...managed.info, port };
             ok = true;
+            break;
           }
         }
         if (!ok) {
@@ -355,7 +381,11 @@ export class RuntimeSupervisor {
         if (this.o.previewProxy !== false) {
           const proxyLease = await this.ports.lease(`${managed.info.projectId}:proxy`, PROXY_BAND);
           managed.proxyLease = proxyLease;
-          managed.proxy = await startPreviewProxy({ port: proxyLease.port, targetPort: port });
+          managed.proxy = await startPreviewProxy({
+            port: proxyLease.port,
+            targetPort: port,
+            targetHost: host,
+          });
           managed.info = { ...managed.info, previewUrl: managed.proxy.url };
         } else {
           managed.info = { ...managed.info, previewUrl: url };
@@ -535,6 +565,15 @@ export class RuntimeSupervisor {
     exit: contracts.ExitInfo,
   ): Promise<void> {
     rt.output.push(managed.info.phase, "system", message);
+    this.o.logger?.warn("process failed", {
+      projectId: managed.info.projectId,
+      phase: managed.info.phase,
+      message,
+      tail: rt.output
+        .list({ phase: managed.info.phase, limit: 12 })
+        .map((l) => l.text)
+        .join("\n"),
+    });
     this.clearTimers(managed);
     await this.teardown(managed);
     managed.info = { ...managed.info, state: "CRASHED", exit, lastError: message, pid: undefined };
