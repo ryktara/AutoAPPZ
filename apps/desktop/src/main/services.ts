@@ -27,6 +27,8 @@ import { createGitWiring, registerGitHandlers } from "./git-wiring.ts";
 import { createContextWiring, registerContextHandlers } from "./context-wiring.ts";
 import { createValidationWiring, registerValidationHandlers } from "./validation-wiring.ts";
 import { createIntegrationsWiring } from "./integrations-wiring.ts";
+import { createDeploymentWiring } from "./deployment-wiring.ts";
+import { summarizeReport } from "@autoappz/validation";
 import type { TaskService } from "@autoappz/core";
 import type { PermissionEngine } from "@autoappz/permissions";
 import type { ToolRuntime } from "@autoappz/tools";
@@ -54,6 +56,8 @@ import {
   CheckpointsRepository,
   TaskValidationsRepository,
   IntegrationsRepository,
+  DeploymentTargetsRepository,
+  DeploymentsRepository,
   type DatabaseHandle,
 } from "@autoappz/storage";
 
@@ -326,6 +330,23 @@ export function createServices(options: ServicesOptions): MainServices {
     validations: validationsRepo,
     projects,
   });
+  const deploymentWiring = createDeploymentWiring({
+    bus,
+    targets: new DeploymentTargetsRepository(db.db),
+    deployments: new DeploymentsRepository(db.db),
+    secrets: secretService,
+    projects,
+    projectSettings,
+    templates,
+    git: gitWiring.git,
+    databaseUrlFor: (projectId) => integrationsWiring.databaseUrlFor(projectId),
+    lastValidation: (projectId) => {
+      const report = validationWiring.latest(projectId).report;
+      return report ? { ok: report.ok, summary: summarizeReport(report) } : undefined;
+    },
+    logger: log.child("deploy"),
+    now: options.now,
+  });
   // Managed projects start with an initial commit so the first task has a base to diff against.
   projects.onChange((change) => {
     if (change.kind !== "created") return;
@@ -374,6 +395,7 @@ export function createServices(options: ServicesOptions): MainServices {
     runtime,
     async close() {
       await runtime.stopAll();
+      await deploymentWiring.close();
       await integrationsWiring.close();
       contextWiring.close();
       db.close();

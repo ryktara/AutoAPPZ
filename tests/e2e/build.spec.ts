@@ -164,6 +164,18 @@ test("plan → approve → consent → changes: the vertical slice core", async 
   await expect(databases).toContainText("attached");
   await expect(databases).toContainText("error", { timeout: 15_000 });
 
+  // Deployment hub: a Docker target shows the readiness checklist for the detected framework.
+  const deploy = page.getByRole("region", { name: "Deploy" });
+  await expect(deploy).toContainText("No deployment target yet.");
+  await deploy.getByLabel("Provider").selectOption("docker");
+  await deploy.getByLabel("Target name").fill("Local image");
+  await deploy.getByRole("button", { name: "Add target" }).click();
+  await expect(page.getByRole("list", { name: "Deployment targets" })).toContainText("Local image");
+  const checklist = page.getByRole("list", { name: "Readiness checklist" });
+  await expect(checklist).toContainText("Framework detected", { timeout: 15_000 });
+  await expect(checklist).toContainText("vite → dist");
+  await expect(checklist).toContainText("Docker CLI");
+
   // Undo restores the file to its pre-task content while keeping the commit history intact.
   await page.getByRole("tab", { name: "Changes" }).click();
   await page.getByRole("button", { name: "Undo this task" }).click();

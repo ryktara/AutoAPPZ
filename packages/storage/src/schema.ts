@@ -236,6 +236,45 @@ export const taskValidations = sqliteTable(
   (t) => [index("task_validations_task_idx").on(t.taskId, t.attempt)],
 );
 
+export const deploymentTargets = sqliteTable(
+  "deployment_targets",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    adapterId: text("adapter_id").notNull(),
+    name: text("name").notNull(),
+    config: text("config").notNull(), // JSON, secret-free
+    secretId: text("secret_id"),
+    envSecrets: text("env_secrets").notNull().default("{}"), // JSON name -> secret id
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [index("deployment_targets_project_idx").on(t.projectId)],
+);
+
+export const deployments = sqliteTable(
+  "deployments",
+  {
+    id: text("id").primaryKey(),
+    targetId: text("target_id")
+      .notNull()
+      .references(() => deploymentTargets.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    adapterId: text("adapter_id").notNull(),
+    status: text("status").notNull(),
+    url: text("url"),
+    providerRef: text("provider_ref"),
+    startedAt: integer("started_at").notNull(),
+    finishedAt: integer("finished_at"),
+    error: text("error"),
+    log: text("log").notNull().default(""),
+  },
+  (t) => [index("deployments_project_idx").on(t.projectId, t.startedAt)],
+);
+
 export const checkpoints = sqliteTable(
   "checkpoints",
   {
@@ -327,6 +366,8 @@ export const schema = {
   taskEvents,
   taskChanges,
   taskValidations,
+  deploymentTargets,
+  deployments,
   agentRuns,
   toolCalls,
   checkpoints,

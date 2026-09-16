@@ -8,6 +8,7 @@ import { ChangesPanel } from "./project/ChangesPanel.tsx";
 import { GitPanel } from "./project/GitPanel.tsx";
 import { IndexPanel } from "./project/IndexPanel.tsx";
 import { DatabasePanel } from "./project/DatabasePanel.tsx";
+import { DeployPanel } from "./project/DeployPanel.tsx";
 import { ValidationPanel } from "./project/ValidationPanel.tsx";
 import { PreviewPane } from "./project/PreviewPane.tsx";
 import { Dock } from "./project/Dock.tsx";
@@ -403,6 +404,7 @@ function ProjectPanel({ project: p }: { readonly project: project.Project }) {
       <GitPanel projectId={p.id} />
       <IndexPanel projectId={p.id} />
       <DatabasePanel projectId={p.id} />
+      <DeployPanel projectId={p.id} />
       <Card title="Project settings">
         {(rename.error ?? updateSettings.error) ? (
           <Banner tone="danger">{(rename.error ?? updateSettings.error)?.message}</Banner>

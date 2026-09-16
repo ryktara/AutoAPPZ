@@ -13,7 +13,8 @@
     "@autoappz/diagnostics": "workspace:*",
     "@autoappz/tools": "workspace:*",
     "pg": "^8.23.0",
-    "zod": "^4.3.0"
+    "zod": "^4.3.0",
+    "@autoappz/runtime": "workspace:*"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

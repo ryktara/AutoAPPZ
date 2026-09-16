@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        template: [react-vite, fullstack-postgres]
+        template: [react-vite, fullstack-postgres, nextjs, dashboard]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -110,6 +110,19 @@ jobs:
           pnpm db:migrate
           pnpm test
           pnpm build
+
+  docker-build:
+    name: docker image · ${{ matrix.template }}
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        template: [react-vite, fullstack-postgres, nextjs, dashboard]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # Every template ships the Dockerfile the Docker deployment target would generate; it must build on its own.
+      - run: docker build --tag autoappz-template-${{ matrix.template }} templates/${{ matrix.template }}
 
   e2e:
     name: e2e · ${{ matrix.os }}

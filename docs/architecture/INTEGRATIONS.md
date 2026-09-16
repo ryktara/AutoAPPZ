@@ -25,3 +25,12 @@ Canonical decision: `docs/adr/ADR-014-database-integrations.md`.
 - Storage: migration `0005_integrations_fields`; `IntegrationsRepository`. Project settings gain `databaseIntegrationId`.
 - Template manifests gain `runtime.migrate` and `env[]`; `fullstack-postgres` is verified in CI against a PostgreSQL service (`template-postgres` job).
 - Deferred: deployment/VCS/MCP adapters (M12/M13), Neon branch-per-task, per-table permission scopes, a SQL console in the UI.
+
+## Implementation notes — deployment (M12)
+
+Canonical decision: `docs/adr/ADR-015-deployment-adapters.md`.
+
+- `packages/integrations/src/deployment`: `detectFramework` (vite / nextjs (+ static export) / node server / static / unknown, output dir, package manager), `collectFiles` + `digest` (caps, never dependencies, VCS data or secret files), `renderDockerfile`, `buildReadiness`, provider adapters `vercelAdapter` (source upload), `netlifyAdapter` and `cloudflareAdapter` (prebuilt output upload), `createDockerAdapter` (local image). Shared process helpers (`runCommand`, `resolveProjectBin`) moved to `@autoappz/runtime`.
+- Desktop: `deployment-wiring.ts` — targets and deployments repositories, env requirements (template `env[]` + `DATABASE_URL` from the attached database + per-target secrets), readiness (with git status and the latest validation), one running deployment at a time, live event journal with replay from the persisted record, handlers (`deploy.adapters/targets/upsertTarget/deleteTarget/setEnv/discover/readiness/run/cancel/history`, stream `deploy.events`). The Project tab's **Deploy** card manages targets, env values, the checklist, live logs and history.
+- Templates: `nextjs` (App Router, Vitest) and `dashboard` (KPIs, SVG chart, sortable table) added; every template ships the `Dockerfile`/`.dockerignore` the Docker target generates; CI runs the portability check for all four and builds each image (`docker-build` job).
+- Deferred: `saas` template (needs the payments integration design), registry push for Docker images, deployment logs beyond 100 kB, provider-side build logs, GitHub VCS adapter (M13/M14).

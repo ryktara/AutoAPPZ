@@ -6,6 +6,8 @@ export { LineSplitter, OutputRing, stripAnsi } from "./output.ts";
 export { extractDiagnostic } from "./diagnostics.ts";
 export type { Extracted } from "./diagnostics.ts";
 export { httpProbe, isAlive, killTree } from "./process.ts";
+export { resolveProjectBin, runCommand, toProjectRelative } from "./exec.ts";
+export type { CommandRun, RunCommandInput } from "./exec.ts";
 export {
   PREVIEW_SCRIPT_PATH,
   PREVIEW_SCRIPT_VERSION,

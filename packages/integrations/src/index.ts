@@ -1,5 +1,3 @@
-import type { SecretRef } from "@autoappz/contracts";
-
 // ---- database (M11)
 export { classifySql, blank as blankSql } from "./database/sql-classifier.ts";
 export type { SqlClassification, SqlKind } from "./database/sql-classifier.ts";
@@ -44,18 +42,61 @@ export function databaseAdapter(id: DatabaseAdapterId): DatabaseAdapter {
   return adapter;
 }
 
-// ---- interfaces for later milestones (M12 deployment, M13 MCP)
-export interface DeploymentProvider {
-  readonly id: string;
-  deploy(input: {
-    projectRoot: string;
-    credential: SecretRef;
-    signal: AbortSignal;
-  }): Promise<{ url: string; id: string }>;
-}
-
+// ---- interfaces for later milestones (M13 MCP)
 export interface McpClient {
   listTools(): Promise<readonly { name: string; description: string }[]>;
   call(tool: string, input: unknown, signal: AbortSignal): Promise<unknown>;
   close(): Promise<void>;
+}
+
+// ---- deployment (M12)
+export type {
+  DeployEvent,
+  DeployInput,
+  DeploymentAdapter,
+  DeploymentAdapterId,
+  DeploymentTarget,
+  DiscoveredSite,
+  Framework,
+  FrameworkInfo,
+  ReadinessItem,
+} from "./deployment/types.ts";
+export { detectFramework } from "./deployment/framework.ts";
+export {
+  MAX_UPLOAD_BYTES,
+  MAX_UPLOAD_FILES,
+  collectFiles,
+  contentTypeFor,
+  digest,
+} from "./deployment/files.ts";
+export type { UploadFile } from "./deployment/files.ts";
+export { DOCKERIGNORE, renderDockerfile } from "./deployment/dockerfile.ts";
+export { buildReadiness } from "./deployment/readiness.ts";
+export type { ReadinessContext } from "./deployment/readiness.ts";
+export { VERCEL_API, vercelAdapter } from "./deployment/adapters/vercel.ts";
+export { NETLIFY_API, netlifyAdapter } from "./deployment/adapters/netlify.ts";
+export { CLOUDFLARE_API, cloudflareAdapter } from "./deployment/adapters/cloudflare.ts";
+export { DOCKER_BUILD_TIMEOUT_MS, createDockerAdapter, imageTagFor } from "./deployment/adapters/docker.ts";
+export type { DockerAdapterOptions } from "./deployment/adapters/docker.ts";
+
+import type { DockerAdapterOptions } from "./deployment/adapters/docker.ts";
+import { cloudflareAdapter } from "./deployment/adapters/cloudflare.ts";
+import { createDockerAdapter } from "./deployment/adapters/docker.ts";
+import { netlifyAdapter } from "./deployment/adapters/netlify.ts";
+import { vercelAdapter } from "./deployment/adapters/vercel.ts";
+import type { DeploymentAdapter, DeploymentAdapterId } from "./deployment/types.ts";
+
+export function createDeploymentAdapters(
+  options: { docker?: DockerAdapterOptions | undefined } = {},
+): DeploymentAdapter[] {
+  return [vercelAdapter, netlifyAdapter, cloudflareAdapter, createDockerAdapter(options.docker)];
+}
+
+export function deploymentAdapter(
+  adapters: readonly DeploymentAdapter[],
+  id: DeploymentAdapterId,
+): DeploymentAdapter {
+  const adapter = adapters.find((a) => a.id === id);
+  if (!adapter) throw new Error(`Unknown deployment adapter ${id}`);
+  return adapter;
 }

@@ -3,6 +3,7 @@ import * as blueprint from "./domains/blueprint.ts";
 import * as context from "./domains/context.ts";
 import * as validation from "./domains/validation.ts";
 import * as integrations from "./domains/integrations.ts";
+import * as deployment from "./domains/deployment.ts";
 import * as git from "./domains/git.ts";
 import * as memory from "./domains/memory.ts";
 import * as permissions from "./domains/permissions.ts";
@@ -116,6 +117,18 @@ export const ALL_CONTRACTS: readonly AnyDefinition[] = [
   integrations.integrationsDiscover,
   integrations.dbIntrospect,
   integrations.integrationsChanged,
+  deployment.deployAdapters,
+  deployment.deployTargets,
+  deployment.deployUpsertTarget,
+  deployment.deployDeleteTarget,
+  deployment.deploySetEnv,
+  deployment.deployDiscover,
+  deployment.deployReadiness,
+  deployment.deployRun,
+  deployment.deployCancel,
+  deployment.deployEvents,
+  deployment.deployHistory,
+  deployment.deployChanged,
 ];
 
 export function contractNames(kind?: AnyDefinition["kind"]): readonly string[] {

@@ -4,6 +4,7 @@ import { m0002TaskModelError } from "./0002_task_model_error.ts";
 import { m0003TaskChanges } from "./0003_task_changes.ts";
 import { m0004TaskValidations } from "./0004_task_validations.ts";
 import { m0005IntegrationsFields } from "./0005_integrations_fields.ts";
+import { m0006Deployments } from "./0006_deployments.ts";
 
 /** Append only. Never edit a shipped migration; add a new one. */
 export const ALL_MIGRATIONS: readonly Migration[] = [
@@ -12,4 +13,5 @@ export const ALL_MIGRATIONS: readonly Migration[] = [
   m0003TaskChanges,
   m0004TaskValidations,
   m0005IntegrationsFields,
+  m0006Deployments,
 ];

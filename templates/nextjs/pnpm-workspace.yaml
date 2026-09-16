@@ -1,0 +1,6 @@
+# pnpm 10+/11 build approval: Next.js's SWC binary and sharp verify their platform builds on install.
+allowBuilds:
+  esbuild: true
+  sharp: true
+  "@swc/core": true
+  unrs-resolver: true

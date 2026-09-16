@@ -1,0 +1,15 @@
+{
+  "id": "dashboard",
+  "displayName": "Dashboard",
+  "description": "React 19 + Vite analytics dashboard: KPI cards, dependency-free SVG charts, a sortable data table and a sidebar layout. No backend.",
+  "stack": ["react", "vite", "typescript", "vitest"],
+  "runtime": {
+    "install": ["pnpm", "install"],
+    "dev": ["pnpm", "run", "dev"],
+    "build": ["pnpm", "run", "build"],
+    "test": ["pnpm", "run", "test"],
+    "devPortFlag": "--port"
+  },
+  "env": [],
+  "exclude": []
+}

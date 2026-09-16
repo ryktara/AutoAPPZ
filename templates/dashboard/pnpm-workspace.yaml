@@ -1,0 +1,3 @@
+# pnpm 10+/11 build approval: esbuild's postinstall only verifies its platform binary.
+allowBuilds:
+  esbuild: true

@@ -1,0 +1,138 @@
+:root {
+  color-scheme: light dark;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  line-height: 1.5;
+  --panel: color-mix(in srgb, CanvasText 6%, Canvas);
+  --border: color-mix(in srgb, CanvasText 15%, Canvas);
+}
+body {
+  margin: 0;
+}
+.layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+}
+.sidebar {
+  padding: 1.5rem 1rem;
+  border-right: 1px solid var(--border);
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+}
+.sidebar h1 {
+  font-size: 1.1rem;
+  margin: 0 0 1rem;
+}
+.sidebar button {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+.sidebar button.active {
+  background: var(--panel);
+  font-weight: 600;
+}
+.content {
+  padding: 1.5rem;
+  display: grid;
+  gap: 1.5rem;
+  align-content: start;
+}
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+.kpi {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  display: grid;
+  gap: 0.25rem;
+}
+.kpi-label {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+.kpi-value {
+  font-size: 1.4rem;
+}
+.chart {
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.chart svg {
+  width: 100%;
+  height: auto;
+}
+.panel {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow: auto;
+}
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+.panel input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: Canvas;
+  color: inherit;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+th,
+td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+th button {
+  background: none;
+  border: 0;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.badge {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  background: var(--border);
+}
+.badge-refunded {
+  background: color-mix(in srgb, crimson 25%, Canvas);
+}
+.badge-pending {
+  background: color-mix(in srgb, orange 30%, Canvas);
+}
