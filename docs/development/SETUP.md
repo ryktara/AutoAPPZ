@@ -36,3 +36,12 @@ See `docs/design/SYSTEM-ARCHITECTURE.md §2`. Each package builds with project r
   set `AUTOAPPZ_DATA_DIR` to isolate state).
 - If Electron's postinstall is interrupted you will see "Electron failed to install correctly": delete
   `%LOCALAPPDATA%/electron/Cache` (or `~/.cache/electron`) and re-run `pnpm install`.
+
+## Environment variables
+
+| Variable | Purpose |
+| --- | --- |
+| `AUTOAPPZ_DATA_DIR` | Platform data directory (database, secrets vault, logs). Defaults to Electron `userData`. |
+| `AUTOAPPZ_PROJECTS_DIR` | Default parent directory for new projects; overrides the setting. Used by e2e/CI to keep the home directory untouched. |
+| `AUTOAPPZ_LOG_LEVEL` | `trace` … `error`; default `debug` in dev, `info` when packaged. |
+| `AUTOAPPZ_FAKE_MODEL` | (M3+) route model calls to the deterministic fake server. |

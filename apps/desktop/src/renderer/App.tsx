@@ -1,39 +1,54 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { settings } from "@autoappz/contracts";
 import { AppShell } from "@autoappz/ui";
 import { RuntimeContext, useQuery } from "./state/hooks.ts";
+import { RouterContext, useRouter, type Route } from "./state/router.ts";
 import type { RendererRuntime } from "./state/runtime.ts";
 import { HomeScreen } from "./screens/HomeScreen.tsx";
+import { ProjectScreen } from "./screens/ProjectScreen.tsx";
 import { SettingsScreen } from "./screens/SettingsScreen.tsx";
 
 const NAV = [
-  { id: "home", label: "Home" },
+  { id: "home", label: "Projects" },
   { id: "settings", label: "Settings" },
 ] as const;
-type ScreenId = (typeof NAV)[number]["id"];
 
 export function App({ runtime }: { readonly runtime: RendererRuntime }) {
+  const [route, setRoute] = useState<Route>({ name: "home" });
+  const navigate = useCallback((next: Route) => {
+    setRoute(next);
+  }, []);
+  const router = useMemo(() => ({ route, navigate }), [route, navigate]);
   return (
     <RuntimeContext.Provider value={runtime}>
-      <Shell />
+      <RouterContext.Provider value={router}>
+        <Shell />
+      </RouterContext.Provider>
     </RuntimeContext.Provider>
   );
 }
 
 function Shell() {
-  const [screen, setScreen] = useState<ScreenId>("home");
+  const { route, navigate } = useRouter();
   useThemeSync();
+  const activeId = route.name === "settings" ? "settings" : "home";
   return (
     <AppShell
       brand="AutoAPPZ"
       nav={NAV}
-      activeId={screen}
+      activeId={activeId}
       onNavigate={(id) => {
-        setScreen(id as ScreenId);
+        navigate(id === "settings" ? { name: "settings" } : { name: "home" });
       }}
       footer={<span>Local-first · no account required</span>}
     >
-      {screen === "home" ? <HomeScreen /> : <SettingsScreen />}
+      {route.name === "home" ? (
+        <HomeScreen />
+      ) : route.name === "settings" ? (
+        <SettingsScreen />
+      ) : (
+        <ProjectScreen key={route.id} id={route.id} />
+      )}
     </AppShell>
   );
 }

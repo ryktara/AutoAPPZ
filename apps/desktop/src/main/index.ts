@@ -1,12 +1,13 @@
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import { createWriteStream, mkdirSync } from "node:fs";
+import { homedir } from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createLoggerRoot, jsonLineSink, parseLogLevel, Redactor, type LogSink } from "@autoappz/diagnostics";
 import { HELLO_CHANNEL } from "../shared/bridge.ts";
 import { createElectronTransport } from "./electron-transport.ts";
 import { createSafeStorageCipher } from "./safe-storage-cipher.ts";
-import { createServices, type MainServices } from "./services.ts";
+import { createServices, type HostCapabilities, type MainServices } from "./services.ts";
 import { createMainWindow, installSessionHardening, trustPolicy } from "./window.ts";
 
 const dataDirectory = process.env["AUTOAPPZ_DATA_DIR"] ?? app.getPath("userData");
@@ -25,6 +26,13 @@ const { logger } = createLoggerRoot({
   sinks,
   redactor,
 });
+
+/** Bundled templates: `resources/templates` when packaged, the repository folder in dev. */
+function templatesDirectory(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "templates")
+    : path.resolve(app.getAppPath(), "..", "..", "templates");
+}
 
 let services: MainServices | undefined;
 
@@ -49,6 +57,20 @@ if (!app.requestSingleInstanceLock()) {
 
   void app.whenReady().then(() => {
     installSessionHardening();
+
+    const host: HostCapabilities = {
+      async pickDirectory(input) {
+        const owner = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+        const opts: Electron.OpenDialogOptions = {
+          properties: ["openDirectory", "createDirectory"],
+          ...(input.title !== undefined ? { title: input.title } : {}),
+          ...(input.defaultPath !== undefined ? { defaultPath: input.defaultPath } : {}),
+        };
+        const result = owner ? await dialog.showOpenDialog(owner, opts) : await dialog.showOpenDialog(opts);
+        return result.canceled ? null : (result.filePaths[0] ?? null);
+      },
+    };
+
     try {
       services = createServices({
         logger,
@@ -56,8 +78,12 @@ if (!app.requestSingleInstanceLock()) {
         appVersion: app.getVersion(),
         platform: process.platform,
         dataDirectory,
+        homeDirectory: homedir(),
+        templatesDir: templatesDirectory(),
+        projectsDirectoryOverride: process.env["AUTOAPPZ_PROJECTS_DIR"],
         sessionId,
         cipher: createSafeStorageCipher(),
+        host,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

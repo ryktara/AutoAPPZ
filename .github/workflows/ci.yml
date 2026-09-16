@@ -48,6 +48,30 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
 
+  templates:
+    name: template portability · ${{ matrix.template }}
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        template: [react-vite]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      # Copy the template out of the workspace so it must stand entirely on its own.
+      - run: |
+          cp -r templates/${{ matrix.template }} "$RUNNER_TEMP/tpl"
+          rm -f "$RUNNER_TEMP/tpl/template.json"
+          cd "$RUNNER_TEMP/tpl"
+          grep -q "@autoappz" package.json && { echo "template depends on @autoappz"; exit 1; } || true
+          pnpm install
+          pnpm build
+          pnpm test
+
   e2e:
     name: e2e · ${{ matrix.os }}
     needs: check

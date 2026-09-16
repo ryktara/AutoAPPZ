@@ -2,13 +2,16 @@
   "name": "@autoappz/project",
   "version": "0.0.0",
   "private": true,
-  "description": "Project lifecycle: creation from templates, registry, blueprint, requirements (M2).",
+  "description": "Project lifecycle: catalog, templates, blueprint, requirements, project memory.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@autoappz/contracts": "workspace:*"
+    "@autoappz/contracts": "workspace:*",
+    "@autoappz/diagnostics": "workspace:*",
+    "@autoappz/storage": "workspace:*",
+    "zod": "^4.3.0"
   }
 }

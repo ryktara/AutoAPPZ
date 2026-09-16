@@ -40,6 +40,7 @@ export default tseslint.config(
       "**/.vite/**",
       "**/out/**",
       "_reference/**",
+      "templates/**",
       "**/*.d.ts",
       "coverage/**",
       "**/playwright-report/**",

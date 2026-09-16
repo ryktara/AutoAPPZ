@@ -7,6 +7,9 @@ export { schema } from "./schema.ts";
 export type { Schema } from "./schema.ts";
 export { SettingsRepository } from "./repositories/settings.ts";
 export { SecretRefsRepository } from "./repositories/secret-refs.ts";
+export { ProjectsRepository } from "./repositories/projects.ts";
+export { BlueprintsRepository, RequirementsRepository } from "./repositories/blueprints.ts";
+export { ProjectMemoryRepository } from "./repositories/project-memory.ts";
 export { SettingsService } from "./settings-service.ts";
 export type { UserSettingsPatch } from "./settings-service.ts";
 

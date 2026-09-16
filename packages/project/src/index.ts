@@ -1,23 +1,15 @@
-export interface ProjectDescriptor {
-  readonly id: string;
-  readonly name: string;
-  readonly path: string;
-  readonly templateId: string;
-  readonly createdAt: number;
-  readonly lastOpenedAt: number;
-}
-
-export interface TemplateDescriptor {
-  readonly id: string;
-  readonly displayName: string;
-  readonly description: string;
-  readonly stack: readonly string[];
-  readonly source: { kind: "bundled"; dir: string } | { kind: "git"; url: string; ref: string };
-}
-
-export interface ProjectService {
-  list(): Promise<readonly ProjectDescriptor[]>;
-  get(id: string): Promise<ProjectDescriptor | undefined>;
-  create(input: { name: string; templateId: string; directory?: string }): Promise<ProjectDescriptor>;
-  remove(id: string, options: { deleteFiles: boolean }): Promise<void>;
-}
+export { ProjectCatalog } from "./catalog.ts";
+export type { ProjectCatalogOptions, ProjectChange } from "./catalog.ts";
+export {
+  BundledTemplateSource,
+  TemplateRegistry,
+  TemplateManifestSchema,
+  packageNameFor,
+} from "./templates.ts";
+export type { TemplateSource, TemplateManifest, MaterializeOptions } from "./templates.ts";
+export { BlueprintService, RequirementsService } from "./blueprint.ts";
+export { ProjectMemoryService } from "./memory.ts";
+export { ProjectSettingsService } from "./project-settings.ts";
+export type { ProjectSettingsPatch } from "./project-settings.ts";
+export { assertAllowedProjectDirectory, slugify, uniqueChildDirectory } from "./paths.ts";
+export type { PathPolicy } from "./paths.ts";

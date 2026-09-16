@@ -1,4 +1,10 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import type {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
 
 /* Presentational primitives. No business logic; every component is keyboard-operable by construction. */
 
@@ -118,4 +124,8 @@ export function Tag({ children }: { readonly children: ReactNode }) {
 
 function slug(s: string): string {
   return `h-${s.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+}
+
+export function TextArea({ className, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea className={["az-input", "az-textarea", className ?? ""].join(" ").trim()} {...rest} />;
 }

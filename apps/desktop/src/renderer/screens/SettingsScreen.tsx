@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { settings, type SecretKind } from "@autoappz/contracts";
+import { settings, workspace, type SecretKind } from "@autoappz/contracts";
 import {
   Banner,
   Button,
@@ -27,6 +27,7 @@ export function SettingsScreen() {
     <Page title="Settings" subtitle="Preferences are stored locally. Secrets live in your OS secure storage.">
       <GeneralSection />
       <SecretsSection />
+      <AboutSection />
     </Page>
   );
 }
@@ -246,6 +247,28 @@ function SecretsSection() {
           </Button>
         </div>
       </form>
+    </Card>
+  );
+}
+
+function AboutSection() {
+  const info = useQuery(workspace.workspaceInfo, undefined);
+  return (
+    <Card title="About">
+      {info.status === "error" ? (
+        <Banner tone="danger">{info.error?.message ?? "Could not reach the host."}</Banner>
+      ) : (
+        <p data-testid="status" className="az-muted">
+          {info.data
+            ? `Workspace ready. v${info.data.appVersion} · ${info.data.platform} · session ${info.data.sessionId.slice(0, 8)}`
+            : "Connecting to host…"}
+        </p>
+      )}
+      {info.data ? (
+        <p className="az-muted">
+          Data directory: <code>{info.data.dataDirectory}</code>
+        </p>
+      ) : null}
     </Card>
   );
 }

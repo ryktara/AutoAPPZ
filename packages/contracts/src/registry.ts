@@ -1,4 +1,7 @@
 import type { AnyDefinition } from "./definitions.ts";
+import * as blueprint from "./domains/blueprint.ts";
+import * as memory from "./domains/memory.ts";
+import * as project from "./domains/project.ts";
 import * as settings from "./domains/settings.ts";
 import * as workspace from "./domains/workspace.ts";
 
@@ -17,6 +20,28 @@ export const ALL_CONTRACTS: readonly AnyDefinition[] = [
   workspace.workspaceInfo,
   workspace.workspaceReady,
   workspace.cacheInvalidate,
+  project.projectList,
+  project.projectGet,
+  project.projectTemplates,
+  project.projectDefaultDirectory,
+  project.projectCreate,
+  project.projectImport,
+  project.projectOpen,
+  project.projectRename,
+  project.projectDelete,
+  project.projectChanged,
+  project.projectSettingsGet,
+  project.projectSettingsUpdate,
+  project.dialogPickDirectory,
+  blueprint.blueprintGet,
+  blueprint.blueprintSave,
+  blueprint.blueprintApprove,
+  blueprint.requirementsList,
+  blueprint.requirementsSync,
+  memory.memoryList,
+  memory.memoryAdd,
+  memory.memorySupersede,
+  memory.memoryDelete,
 ];
 
 export function contractNames(kind?: AnyDefinition["kind"]): readonly string[] {

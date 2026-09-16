@@ -5,3 +5,6 @@ export * from "./common.ts";
 export * from "./registry.ts";
 export * as settings from "./domains/settings.ts";
 export * as workspace from "./domains/workspace.ts";
+export * as project from "./domains/project.ts";
+export * as blueprint from "./domains/blueprint.ts";
+export * as memory from "./domains/memory.ts";

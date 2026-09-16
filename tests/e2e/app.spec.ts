@@ -29,7 +29,9 @@ test.afterEach(async () => {
   await app.close();
 });
 
-test("boots and round-trips workspace.info", async () => {
+test("boots to the projects page and round-trips workspace.info in Settings", async () => {
+  await expect(page.getByRole("form", { name: "New project" })).toBeVisible();
+  await page.getByRole("button", { name: "Settings" }).click();
   await expect(page.getByTestId("status")).toHaveText(/Workspace ready/);
 });
 

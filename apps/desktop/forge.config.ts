@@ -10,6 +10,8 @@ const config: ForgeConfig = {
     executableName: "autoappz",
     // Native prebuilds must stay on disk (not inside the asar) to be dlopen-able.
     asar: { unpack: "**/node_modules/better-sqlite3/**" },
+    // Bundled project templates are read at runtime from <resources>/templates.
+    extraResource: ["../../templates"],
     appBundleId: "dev.autoappz.desktop",
     protocols: [{ name: "AutoAPPZ", schemes: ["autoappz"] }],
   },

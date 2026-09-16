@@ -1,11 +1,16 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { ALL_CONTRACTS, settings, workspace } from "@autoappz/contracts";
+import { ALL_CONTRACTS, project, settings, workspace } from "@autoappz/contracts";
 import { CommandBusClient, createLocalTransportPair } from "@autoappz/command-bus";
 import { createLoggerRoot, Redactor, RingBufferSink } from "@autoappz/diagnostics";
 import { createFakeCipher } from "@autoappz/secrets";
 import { withTempDir } from "@autoappz/testing";
+import { fileURLToPath } from "node:url";
 import { createServices } from "../src/main/services.ts";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const TEMPLATES_DIR = path.resolve(here, "../../../templates");
+const fakeHost = { pickDirectory: () => Promise.resolve(null) };
 
 const FIXTURE_SECRET = "sk-fixture-value-that-must-never-leak-0987654321";
 
@@ -30,10 +35,13 @@ function boot(dir: string) {
     redactor,
     appVersion: "0.0.0-test",
     platform: "linux",
-    dataDirectory: dir,
+    dataDirectory: path.join(dir, "data"),
+    homeDirectory: path.join(dir, "home"),
+    templatesDir: TEMPLATES_DIR,
     sessionId: "session-1",
     cipher: createFakeCipher(),
-    dbPath: path.join(dir, "autoappz.db"),
+    host: fakeHost,
+    dbPath: path.join(dir, "data", "autoappz.db"),
   });
   const peer = { peerId: "window-1", trusted: true };
   const [hostSide, clientSide] = createLocalTransportPair(peer);
@@ -84,8 +92,10 @@ describe("main services", () => {
       const payloads: unknown[] = [ref];
       for (const contract of ALL_CONTRACTS) {
         if (contract.kind !== "query") continue;
-        payloads.push(await client.dispatch(contract, undefined));
+        if (contract.input.safeParse(undefined).success)
+          payloads.push(await client.dispatch(contract, undefined));
       }
+      payloads.push(await client.dispatch(project.projectList, { includeArchived: false }));
       const serialized = JSON.stringify(payloads);
       expect(serialized).not.toContain(FIXTURE_SECRET);
       expect(serialized).not.toContain(FIXTURE_SECRET.slice(0, 20));
@@ -110,9 +120,12 @@ describe("main services", () => {
         redactor,
         appVersion: "0",
         platform: "linux",
-        dataDirectory: dir,
+        dataDirectory: path.join(dir, "data"),
+        homeDirectory: path.join(dir, "home"),
+        templatesDir: TEMPLATES_DIR,
         sessionId: "s",
         cipher: createFakeCipher(false),
+        host: fakeHost,
         dbPath: ":memory:",
       });
       const status = await services.bus.dispatch(settings.secretsStorageStatus, undefined, {
@@ -127,6 +140,29 @@ describe("main services", () => {
         ),
       ).rejects.toMatchObject({ code: "secrets.no_secure_storage" });
       services.close();
+    });
+  });
+});
+
+describe("project handlers", () => {
+  it("creates a project through the bus and publishes project.changed", async () => {
+    await withServices(async ({ client }) => {
+      const changes: string[] = [];
+      client.on(project.projectChanged, (c) => changes.push(`${c.kind}:${c.id}`));
+      await new Promise((r) => setTimeout(r, 5));
+      const templates = await client.dispatch(project.projectTemplates, undefined);
+      expect(templates.map((t) => t.id)).toContain("react-vite");
+      const created = await client.dispatch(project.projectCreate, {
+        name: "Bus App",
+        templateId: "react-vite",
+      });
+      expect(created.path.endsWith("bus-app")).toBe(true);
+      const list = await client.dispatch(project.projectList, { includeArchived: false });
+      expect(list.map((p) => p.id)).toEqual([created.id]);
+      await new Promise((r) => setTimeout(r, 5));
+      expect(changes).toEqual([`created:${created.id}`]);
+      const picked = await client.dispatch(project.dialogPickDirectory, {});
+      expect(picked).toEqual({ path: null });
     });
   });
 });

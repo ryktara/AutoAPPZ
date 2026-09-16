@@ -15,14 +15,15 @@
   "dependencies": {
     "@autoappz/command-bus": "workspace:*",
     "@autoappz/contracts": "workspace:*",
-    "@autoappz/diagnostics": "workspace:*",
-    "@autoappz/ui": "workspace:*",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "@autoappz/storage": "workspace:*",
-    "@autoappz/secrets": "workspace:*",
     "@autoappz/core": "workspace:*",
-    "better-sqlite3": "^13.0.3"
+    "@autoappz/diagnostics": "workspace:*",
+    "@autoappz/project": "workspace:*",
+    "@autoappz/secrets": "workspace:*",
+    "@autoappz/storage": "workspace:*",
+    "@autoappz/ui": "workspace:*",
+    "better-sqlite3": "^13.0.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.11.1",

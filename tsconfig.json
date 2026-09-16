@@ -24,6 +24,7 @@
     "_reference",
     "apps/desktop/src/renderer",
     "packages/ui",
-    "tests/e2e"
+    "tests/e2e",
+    "templates"
   ]
 }

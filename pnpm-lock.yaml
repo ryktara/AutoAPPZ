@@ -50,6 +50,9 @@ importers:
       '@autoappz/diagnostics':
         specifier: workspace:*
         version: link:../../packages/diagnostics
+      '@autoappz/project':
+        specifier: workspace:*
+        version: link:../../packages/project
       '@autoappz/secrets':
         specifier: workspace:*
         version: link:../../packages/secrets
@@ -183,6 +186,15 @@ importers:
       '@autoappz/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@autoappz/diagnostics':
+        specifier: workspace:*
+        version: link:../diagnostics
+      '@autoappz/storage':
+        specifier: workspace:*
+        version: link:../storage
+      zod:
+        specifier: ^4.3.0
+        version: 4.6.5
 
   packages/runtime:
     dependencies:

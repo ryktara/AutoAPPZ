@@ -10,6 +10,7 @@ export {
   Field,
   Select,
   Tag,
+  TextArea,
   TextInput,
 } from "./components/primitives.tsx";
 export type {
@@ -19,3 +20,5 @@ export type {
   CheckboxProps,
   FieldProps,
 } from "./components/primitives.tsx";
+export { Tabs } from "./components/Tabs.tsx";
+export type { TabItem, TabsProps } from "./components/Tabs.tsx";
