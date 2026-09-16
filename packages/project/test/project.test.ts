@@ -139,8 +139,11 @@ describe("ProjectCatalog", () => {
       }
       const created = catalog.create({ name: "Via Link", templateId: "react-vite", parentDirectory: link });
       expect(created.path).toBe(path.join(realpathSync.native(real), "via-link"));
-      const imported = catalog.import({ sourcePath: path.join(link, "via-link"), mode: "in_place" });
-      expect(imported.path).toBe(created.path);
+      // An existing folder reached through the link is registered under its canonical path as well.
+      mkdirSync(path.join(real, "existing"), { recursive: true });
+      writeFileSync(path.join(real, "existing", "package.json"), "{}\n");
+      const imported = catalog.import({ sourcePath: path.join(link, "existing"), mode: "in_place" });
+      expect(imported.path).toBe(path.join(realpathSync.native(real), "existing"));
       await Promise.resolve();
     });
   });
