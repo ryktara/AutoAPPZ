@@ -4,30 +4,32 @@ import path from "node:path";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const pkg = (name: string) => path.join(root, "packages", name, "src", "index.ts");
+const PACKAGES = [
+  "contracts",
+  "command-bus",
+  "core",
+  "agent",
+  "ai-providers",
+  "tools",
+  "project",
+  "runtime",
+  "git",
+  "storage",
+  "secrets",
+  "diagnostics",
+  "permissions",
+  "validation",
+  "context",
+  "integrations",
+  "plugins",
+  "ui",
+  "testing",
+];
 
 export default defineConfig({
   resolve: {
-    alias: {
-      "@autoappz/contracts": pkg("contracts"),
-      "@autoappz/command-bus": pkg("command-bus"),
-      "@autoappz/core": pkg("core"),
-      "@autoappz/agent": pkg("agent"),
-      "@autoappz/ai-providers": pkg("ai-providers"),
-      "@autoappz/tools": pkg("tools"),
-      "@autoappz/project": pkg("project"),
-      "@autoappz/runtime": pkg("runtime"),
-      "@autoappz/git": pkg("git"),
-      "@autoappz/storage": pkg("storage"),
-      "@autoappz/secrets": pkg("secrets"),
-      "@autoappz/diagnostics": pkg("diagnostics"),
-      "@autoappz/permissions": pkg("permissions"),
-      "@autoappz/validation": pkg("validation"),
-      "@autoappz/context": pkg("context"),
-      "@autoappz/integrations": pkg("integrations"),
-      "@autoappz/plugins": pkg("plugins"),
-      "@autoappz/ui": pkg("ui"),
-      "@autoappz/testing": pkg("testing"),
-    },
+    // Exact-match aliases so subpath imports (e.g. @autoappz/ui/ui.css) resolve through the workspace package.
+    alias: PACKAGES.map((name) => ({ find: new RegExp("^@autoappz/" + name + "$"), replacement: pkg(name) })),
   },
   test: {
     include: [

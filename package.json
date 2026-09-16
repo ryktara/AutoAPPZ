@@ -10,7 +10,7 @@
   },
   "scripts": {
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p packages/ui/tsconfig.json --noEmit && tsc -p apps/desktop/src/renderer/tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p packages/ui/tsconfig.json --noEmit && tsc -p apps/desktop/src/renderer/tsconfig.json --noEmit && tsc -p tests/e2e/tsconfig.json --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

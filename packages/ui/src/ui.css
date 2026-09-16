@@ -1,0 +1,317 @@
+/* Base styles for @autoappz/ui. Tokens come from tokensToCss() injected at startup. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+code,
+kbd,
+pre {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* Layout */
+.az-shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  grid-template-rows: 100vh;
+}
+.az-sidebar {
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-subtle);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3);
+  gap: var(--space-2);
+}
+.az-sidebar-brand {
+  font-weight: 600;
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  font-size: 15px;
+}
+.az-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.az-nav-item {
+  all: unset;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-muted);
+  transition: background var(--motion-fast);
+}
+.az-nav-item:hover {
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+}
+.az-nav-item[aria-current="page"] {
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+.az-nav-item:focus-visible {
+  outline: 2px solid var(--color-focus);
+}
+.az-sidebar-footer {
+  margin-top: auto;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  padding: var(--space-2);
+}
+.az-main {
+  overflow: auto;
+  padding: var(--space-5) var(--space-6);
+}
+.az-page {
+  max-width: 880px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.az-page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+.az-page-subtitle {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+}
+
+/* Card / section */
+.az-card {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.az-card-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.az-card-desc {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+/* Fields */
+.az-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.az-field-label {
+  font-weight: 500;
+  font-size: 13px;
+}
+.az-field-hint {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+.az-field-error {
+  color: var(--color-danger);
+  font-size: 12px;
+}
+.az-input,
+.az-select {
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  min-height: 34px;
+  width: 100%;
+  max-width: 420px;
+}
+.az-input:focus-visible,
+.az-select:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 0;
+  border-color: var(--color-focus);
+}
+.az-input[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+.az-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+.az-checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-accent);
+}
+
+/* Buttons */
+.az-btn {
+  font: inherit;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  padding: 6px 12px;
+  min-height: 34px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  transition:
+    background var(--motion-fast),
+    border-color var(--motion-fast);
+}
+.az-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.az-btn-primary {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+.az-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.az-btn-secondary {
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
+.az-btn-secondary:hover:not(:disabled) {
+  background: var(--color-bg-subtle);
+}
+.az-btn-danger {
+  background: transparent;
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+.az-btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+}
+.az-btn-sm {
+  min-height: 28px;
+  padding: 3px 10px;
+  font-size: 13px;
+}
+.az-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* Banner */
+.az-banner {
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid;
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  font-size: 13px;
+}
+.az-banner-info {
+  border-color: var(--color-info);
+  background: color-mix(in srgb, var(--color-info) 8%, transparent);
+}
+.az-banner-warning {
+  border-color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+}
+.az-banner-danger {
+  border-color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+}
+.az-banner-success {
+  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 8%, transparent);
+}
+.az-banner-icon {
+  font-weight: 700;
+  flex: none;
+}
+
+/* Lists */
+.az-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.az-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+.az-list-row:first-child {
+  border-top: 0;
+}
+.az-list-primary {
+  font-weight: 500;
+}
+.az-list-secondary {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+.az-list-grow {
+  flex: 1;
+  min-width: 0;
+}
+.az-tag {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+.az-empty {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+.az-muted {
+  color: var(--color-text-muted);
+}
+.az-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

@@ -7,6 +7,8 @@ packages:
 allowBuilds:
   electron: true
   esbuild: true
+  # better-sqlite3 ships N-API prebuilds; never run its node-gyp fallback.
+  better-sqlite3: false
 
 # @electron/rebuild (via electron-forge) resolves @electron/node-gyp from git.
 blockExoticSubdeps: false

@@ -1,12 +1,19 @@
 import { z } from "zod";
 
+export const SecretKindSchema = z.enum(["api-key", "oauth-token", "password", "connection-string", "other"]);
+export type SecretKind = z.infer<typeof SecretKindSchema>;
+
 /** A reference to a secret stored by the secrets service. Secret values never cross the bus. */
 export const SecretRefSchema = z.object({
   id: z.string().min(1),
-  kind: z.enum(["api-key", "oauth-token", "password", "connection-string", "other"]),
-  label: z.string().min(1),
+  kind: SecretKindSchema,
+  /** Optional owner, e.g. a model provider id ("openai") or integration id. */
+  provider: z.string().min(1).max(64).optional(),
+  label: z.string().min(1).max(120),
+  /** Last four characters, only kept for values long enough that this reveals nothing (≥ 12 chars). */
   lastFour: z.string().max(4).optional(),
   createdAt: z.number().int().nonnegative(),
+  rotatedAt: z.number().int().nonnegative().optional(),
 });
 export type SecretRef = z.infer<typeof SecretRefSchema>;
 

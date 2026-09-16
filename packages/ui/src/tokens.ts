@@ -92,5 +92,6 @@ export function tokensToCss(): string {
     vars(darkColors),
     "}",
     "@media (prefers-reduced-motion: reduce) { :root { --motion-fast: 0ms; --motion-normal: 0ms; } }",
+    ':root[data-reduced-motion="true"] { --motion-fast: 0ms; --motion-normal: 0ms; }',
   ].join("\n");
 }

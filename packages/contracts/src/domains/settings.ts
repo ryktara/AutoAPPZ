@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { defineCommand, defineEvent, defineQuery } from "../definitions.ts";
-import { SecretRefSchema } from "../common.ts";
+import { SecretKindSchema, SecretRefSchema } from "../common.ts";
 
 export const ThemePreferenceSchema = z.enum(["system", "light", "dark"]);
 
@@ -37,9 +37,11 @@ export const settingsChanged = defineEvent({
 export const secretsSet = defineCommand({
   name: "secrets.set",
   input: z.object({
-    kind: SecretRefSchema.shape.kind,
+    kind: SecretKindSchema,
+    provider: z.string().min(1).max(64).optional(),
     label: z.string().min(1).max(120),
     value: z.string().min(1).max(16_384),
+    /** Rotate an existing secret in place (keeps its id and references). */
     replaceId: z.string().min(1).optional(),
   }),
   output: SecretRefSchema,
@@ -58,4 +60,18 @@ export const secretsDelete = defineCommand({
   input: z.object({ id: z.string().min(1) }),
   output: z.void(),
   invalidates: ["secrets"],
+});
+
+export const SecureStorageStatusSchema = z.object({
+  available: z.boolean(),
+  /** Human-readable backend name, e.g. "keychain", "dpapi", "libsecret", "none". */
+  backend: z.string().min(1),
+});
+export type SecureStorageStatus = z.infer<typeof SecureStorageStatusSchema>;
+
+export const secretsStorageStatus = defineQuery({
+  name: "secrets.storageStatus",
+  input: z.void(),
+  output: SecureStorageStatusSchema,
+  scope: "secrets",
 });

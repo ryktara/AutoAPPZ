@@ -1,8 +1,9 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { tokensToCss } from "@autoappz/ui";
+import "@autoappz/ui/ui.css";
 import { App } from "./App.tsx";
-import { connectBus } from "./bus.ts";
+import { connectRuntime } from "./state/runtime.ts";
 
 const style = document.createElement("style");
 style.textContent = tokensToCss();
@@ -15,10 +16,10 @@ const root = createRoot(container);
 if (!window.autoappz) {
   root.render(<p>Bridge unavailable.</p>);
 } else {
-  void connectBus(window.autoappz).then((client) => {
+  void connectRuntime(window.autoappz).then((runtime) => {
     root.render(
       <StrictMode>
-        <App client={client} />
+        <App runtime={runtime} />
       </StrictMode>,
     );
   });

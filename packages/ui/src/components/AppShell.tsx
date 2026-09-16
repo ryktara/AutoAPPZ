@@ -1,37 +1,63 @@
 import type { ReactNode } from "react";
 
+export interface NavItem {
+  readonly id: string;
+  readonly label: string;
+}
+
 export interface AppShellProps {
-  readonly title: string;
-  readonly status?: ReactNode;
+  readonly brand: string;
+  readonly nav: readonly NavItem[];
+  readonly activeId: string;
+  readonly onNavigate: (id: string) => void;
+  readonly footer?: ReactNode;
   readonly children?: ReactNode;
 }
 
-/** Root layout: header + main region. Purely presentational. */
-export function AppShell({ title, status, children }: AppShellProps) {
+/** Sidebar + main region. Purely presentational; navigation state belongs to the caller. */
+export function AppShell({ brand, nav, activeId, onNavigate, footer, children }: AppShellProps) {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--color-bg)",
-        color: "var(--color-text)",
-        fontFamily: "var(--font-sans)",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "var(--space-3) var(--space-4)",
-          borderBottom: "1px solid var(--color-border)",
-        }}
-      >
-        <h1 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>{title}</h1>
-        <div style={{ color: "var(--color-text-muted)", fontSize: "13px" }}>{status}</div>
+    <div className="az-shell">
+      <aside className="az-sidebar">
+        <div className="az-sidebar-brand">{brand}</div>
+        <nav className="az-nav" aria-label="Primary">
+          {nav.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="az-nav-item"
+              aria-current={item.id === activeId ? "page" : undefined}
+              onClick={() => {
+                onNavigate(item.id);
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        {footer ? <div className="az-sidebar-footer">{footer}</div> : null}
+      </aside>
+      <main className="az-main">{children}</main>
+    </div>
+  );
+}
+
+export function Page({
+  title,
+  subtitle,
+  children,
+}: {
+  readonly title: string;
+  readonly subtitle?: string | undefined;
+  readonly children: ReactNode;
+}) {
+  return (
+    <div className="az-page">
+      <header>
+        <h1 className="az-page-title">{title}</h1>
+        {subtitle ? <p className="az-page-subtitle">{subtitle}</p> : null}
       </header>
-      <main style={{ flex: 1, padding: "var(--space-4)" }}>{children}</main>
+      {children}
     </div>
   );
 }

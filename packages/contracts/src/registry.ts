@@ -13,6 +13,7 @@ export const ALL_CONTRACTS: readonly AnyDefinition[] = [
   settings.secretsSet,
   settings.secretsList,
   settings.secretsDelete,
+  settings.secretsStorageStatus,
   workspace.workspaceInfo,
   workspace.workspaceReady,
   workspace.cacheInvalidate,

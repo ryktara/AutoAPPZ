@@ -8,11 +8,13 @@ const config: ForgeConfig = {
   packagerConfig: {
     name: "AutoAPPZ",
     executableName: "autoappz",
-    asar: true,
+    // Native prebuilds must stay on disk (not inside the asar) to be dlopen-able.
+    asar: { unpack: "**/node_modules/better-sqlite3/**" },
     appBundleId: "dev.autoappz.desktop",
     protocols: [{ name: "AutoAPPZ", schemes: ["autoappz"] }],
   },
-  rebuildConfig: {},
+  // better-sqlite3 ships N-API prebuilds; nothing needs an Electron-specific rebuild.
+  rebuildConfig: { onlyModules: [] },
   makers: [new MakerZIP({}, ["darwin", "win32", "linux"])],
   plugins: [
     new VitePlugin({

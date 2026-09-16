@@ -13,7 +13,8 @@
     "apps/desktop/*.ts",
     "tests/**/*.ts",
     "tools/**/*.ts",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "apps/desktop/test/**/*.ts"
   ],
   "exclude": [
     "**/node_modules",
@@ -22,6 +23,7 @@
     "**/out",
     "_reference",
     "apps/desktop/src/renderer",
-    "packages/ui"
+    "packages/ui",
+    "tests/e2e"
   ]
 }

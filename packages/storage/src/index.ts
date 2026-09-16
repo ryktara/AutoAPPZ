@@ -1,17 +1,14 @@
-export interface Migration {
-  readonly id: string; // 0001_initial
-  readonly up: string; // SQL
-}
-
-export interface DatabaseHandle {
-  readonly path: string;
-  close(): void;
-}
-
-export interface DatabaseOpener {
-  /** Opens (creating if needed) the platform database at path and applies pending migrations. */
-  open(path: string): Promise<DatabaseHandle>;
-}
+export { openDatabase } from "./database.ts";
+export type { DatabaseHandle, OpenDatabaseOptions, PlatformDb } from "./database.ts";
+export { ALL_MIGRATIONS } from "./migrations/index.ts";
+export type { Migration } from "./migration.ts";
+export { appliedMigrationIds, pendingMigrations, validateMigrationList } from "./migration.ts";
+export { schema } from "./schema.ts";
+export type { Schema } from "./schema.ts";
+export { SettingsRepository } from "./repositories/settings.ts";
+export { SecretRefsRepository } from "./repositories/secret-refs.ts";
+export { SettingsService } from "./settings-service.ts";
+export type { UserSettingsPatch } from "./settings-service.ts";
 
 export const PLATFORM_DB_FILENAME = "autoappz.db";
 export const PROJECT_INDEX_DB_FILENAME = "index.db";

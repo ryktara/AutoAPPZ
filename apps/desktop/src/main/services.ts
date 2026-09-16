@@ -1,58 +1,97 @@
+import path from "node:path";
 import { ALL_CONTRACTS, settings, workspace } from "@autoappz/contracts";
-
-type UserSettings = settings.UserSettings;
 import { CommandBusHost } from "@autoappz/command-bus";
-import type { Logger } from "@autoappz/diagnostics";
+import type { Logger, Redactor } from "@autoappz/diagnostics";
+import { SecretService, type Cipher } from "@autoappz/secrets";
+import {
+  PLATFORM_DB_FILENAME,
+  SecretRefsRepository,
+  SettingsRepository,
+  SettingsService,
+  openDatabase,
+  type DatabaseHandle,
+} from "@autoappz/storage";
 
 export interface MainServices {
   readonly bus: CommandBusHost;
+  readonly db: DatabaseHandle;
+  readonly settings: SettingsService;
+  readonly secrets: SecretService;
+  close(): void;
 }
 
-/**
- * Composition root for the main process. M0 wires in-memory settings and workspace info so the
- * window can round-trip a query; persistent services replace these in M1/M2.
- */
-export function createServices(input: {
+export interface ServicesOptions {
   logger: Logger;
+  redactor: Redactor;
   appVersion: string;
   platform: NodeJS.Platform;
   dataDirectory: string;
   sessionId: string;
-}): MainServices {
+  cipher: Cipher;
+  /** Defaults to `<dataDirectory>/autoappz.db`; ":memory:" for tests. */
+  dbPath?: string | undefined;
+  now?: (() => number) | undefined;
+}
+
+/**
+ * Composition root for the main process. Electron-free so it can be exercised in unit and
+ * integration tests with a fake cipher and an in-memory database.
+ */
+export function createServices(options: ServicesOptions): MainServices {
+  const log = options.logger;
+  const db = openDatabase({
+    path: options.dbPath ?? path.join(options.dataDirectory, PLATFORM_DB_FILENAME),
+    logger: log.child("storage"),
+    now: options.now,
+  });
+
+  const settingsService = new SettingsService(new SettingsRepository(db.db, options.now));
+  const secretService = new SecretService({
+    refs: new SecretRefsRepository(db.db),
+    cipher: options.cipher,
+    vaultDir: path.join(options.dataDirectory, "secrets"),
+    redactor: options.redactor,
+    logger: log.child("secrets"),
+    now: options.now,
+  });
+
   const bus = new CommandBusHost({
     contracts: ALL_CONTRACTS,
-    logger: input.logger.child("bus"),
+    logger: log.child("bus"),
     onInvalidate: (scopes) => {
       bus.publish(workspace.cacheInvalidate, { scopes: [...scopes] });
     },
   });
 
-  let current: UserSettings = settings.UserSettingsSchema.parse({});
+  settingsService.onChange((next) => {
+    bus.publish(settings.settingsChanged, next);
+  });
 
-  bus.handle(settings.settingsGet, () => current);
-  bus.handle(settings.settingsUpdate, (patch) => {
-    current = settings.UserSettingsSchema.parse({ ...current, ...patch });
-    bus.publish(settings.settingsChanged, current);
-    return current;
-  });
-  bus.handle(settings.secretsList, () => []);
-  bus.handle(settings.secretsSet, () => {
-    throw new Error("Secret storage arrives in M1.");
-  });
-  bus.handle(settings.secretsDelete, () => {
-    throw new Error("Secret storage arrives in M1.");
-  });
+  bus.handle(settings.settingsGet, () => settingsService.get());
+  bus.handle(settings.settingsUpdate, (patch) => settingsService.update(patch));
+  bus.handle(settings.secretsList, async () => [...(await secretService.list())]);
+  bus.handle(settings.secretsSet, (input) => secretService.set(input));
+  bus.handle(settings.secretsDelete, ({ id }) => secretService.delete(id));
+  bus.handle(settings.secretsStorageStatus, () => secretService.storageStatus());
   bus.handle(workspace.workspaceInfo, () => ({
-    appVersion: input.appVersion,
-    platform: toPlatform(input.platform),
-    dataDirectory: input.dataDirectory,
-    sessionId: input.sessionId,
+    appVersion: options.appVersion,
+    platform: toPlatform(options.platform),
+    dataDirectory: options.dataDirectory,
+    sessionId: options.sessionId,
   }));
 
   const unhandled = bus.unhandledContracts();
-  if (unhandled.length > 0) throw new Error("Contracts without handlers: " + unhandled.join(", "));
+  if (unhandled.length > 0) throw new Error(`Contracts without handlers: ${unhandled.join(", ")}`);
 
-  return { bus };
+  return {
+    bus,
+    db,
+    settings: settingsService,
+    secrets: secretService,
+    close() {
+      db.close();
+    },
+  };
 }
 
 function toPlatform(p: NodeJS.Platform): "darwin" | "win32" | "linux" {

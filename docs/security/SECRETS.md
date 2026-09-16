@@ -10,6 +10,8 @@ One secrets service (`packages/secrets`).
 ## Storage
 OS keychain via Electron `safeStorage` (Keychain / DPAPI / libsecret) with an explicit **refusal to fall back to plaintext** unless the user opts in via a visible setting ("This machine has no keyring; store secrets encrypted with a passphrase instead"). Alternative: passphrase-derived key (scrypt) file-based vault. Values are addressed by `SecretRef {id}`.
 
+Implementation (M1): `packages/secrets` `SecretService` encrypts with a `Cipher` (desktop: `safeStorage`; Linux `basic_text` backend counts as unavailable) and writes one ciphertext file per secret to `<dataDir>/secrets/<id>.bin` (0600, atomic rename). Only metadata (`secret_refs` table: kind, provider, label, lastFour for values ≥ 12 chars, timestamps) lives in the database, so DB backups never contain secret material. Rotation (`replaceId`) keeps the id.
+
 ## Rules
 - Secrets never cross the command bus; contracts use `SecretRef`.
 - Never logged: redaction middleware scans log lines, error messages, telemetry, diagnostic bundles and model context for known secret values and common token shapes.

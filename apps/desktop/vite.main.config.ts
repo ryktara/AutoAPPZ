@@ -8,7 +8,8 @@ export default defineConfig({
     emptyOutDir: false,
     sourcemap: true,
     lib: { entry: "src/main/index.ts", formats: ["cjs"], fileName: () => "main.cjs" },
-    rollupOptions: { external: ["electron", /^node:/] },
+    // Native modules stay external and are resolved from node_modules at runtime.
+    rollupOptions: { external: ["electron", "better-sqlite3", /^node:/] },
     target: "node22",
   },
 });

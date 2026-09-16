@@ -1,6 +1,6 @@
 # Platform Database (`packages/storage`)
 
-SQLite (`better-sqlite3`, WAL, foreign keys) + Drizzle ORM; migrations in `packages/storage/migrations`; startup performs backup → migrate → verify; failure restores the backup and surfaces a recovery dialog.
+SQLite (`better-sqlite3`, WAL, foreign keys) + Drizzle ORM; hand-written SQL migrations in `packages/storage/src/migrations` tracked in `_migrations(id, applied_at)`; startup performs backup (`<dataDir>/backups/`) → migrate → verify (`integrity_check`, `foreign_key_check`); failure restores the backup and surfaces a startup error. A test asserts the Drizzle schema and the migrated database agree table-by-table and column-by-column.
 
 ## Schema (initial)
 | Table | Columns (abridged) |

@@ -1,41 +1,52 @@
 import { useEffect, useState } from "react";
-import { workspace } from "@autoappz/contracts";
-
-type WorkspaceInfo = workspace.WorkspaceInfo;
-import type { CommandBusClient } from "@autoappz/command-bus";
+import { settings } from "@autoappz/contracts";
 import { AppShell } from "@autoappz/ui";
+import { RuntimeContext, useQuery } from "./state/hooks.ts";
+import type { RendererRuntime } from "./state/runtime.ts";
+import { HomeScreen } from "./screens/HomeScreen.tsx";
+import { SettingsScreen } from "./screens/SettingsScreen.tsx";
 
-export function App({ client }: { readonly client: CommandBusClient }) {
-  const [info, setInfo] = useState<WorkspaceInfo | undefined>();
-  const [error, setError] = useState<string | undefined>();
+const NAV = [
+  { id: "home", label: "Home" },
+  { id: "settings", label: "Settings" },
+] as const;
+type ScreenId = (typeof NAV)[number]["id"];
 
-  useEffect(() => {
-    let cancelled = false;
-    client
-      .dispatch(workspace.workspaceInfo, undefined)
-      .then((i) => {
-        if (!cancelled) setInfo(i);
-      })
-      .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [client]);
+export function App({ runtime }: { readonly runtime: RendererRuntime }) {
+  return (
+    <RuntimeContext.Provider value={runtime}>
+      <Shell />
+    </RuntimeContext.Provider>
+  );
+}
 
+function Shell() {
+  const [screen, setScreen] = useState<ScreenId>("home");
+  useThemeSync();
   return (
     <AppShell
-      title="AutoAPPZ"
-      status={info ? "v" + info.appVersion + " · " + info.platform : (error ?? "connecting…")}
+      brand="AutoAPPZ"
+      nav={NAV}
+      activeId={screen}
+      onNavigate={(id) => {
+        setScreen(id as ScreenId);
+      }}
+      footer={<span>Local-first · no account required</span>}
     >
-      <p data-testid="status" style={{ color: "var(--color-text-muted)" }}>
-        {info
-          ? "Workspace ready. Session " + info.sessionId.slice(0, 8) + "."
-          : error
-            ? "Error: " + error
-            : "Connecting to host…"}
-      </p>
+      {screen === "home" ? <HomeScreen /> : <SettingsScreen />}
     </AppShell>
   );
+}
+
+/** Applies theme and motion preferences to <html> so tokens can switch without a re-render of the tree. */
+function useThemeSync() {
+  const s = useQuery(settings.settingsGet, undefined);
+  useEffect(() => {
+    const root = document.documentElement;
+    const theme = s.data?.theme ?? "system";
+    if (theme === "system") delete root.dataset["theme"];
+    else root.dataset["theme"] = theme;
+    if (s.data?.reducedMotion) root.dataset["reducedMotion"] = "true";
+    else delete root.dataset["reducedMotion"];
+  }, [s.data?.theme, s.data?.reducedMotion]);
 }
