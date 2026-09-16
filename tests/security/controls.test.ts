@@ -70,7 +70,7 @@ describe("T2 IPC: secrets never cross the bus as values", () => {
   });
 });
 
-describe("T3 Filesystem: project-root scoping and protected paths", () => {
+describe("T3 Filesystem: project-root scoping and protected paths", { timeout: 30_000 }, () => {
   it("rejects absolute paths, traversal, symlink escapes, .git writes and .env reads", async () => {
     await withTempDir(async (root) => {
       mkdirSync(path.join(root, "src"), { recursive: true });

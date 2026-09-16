@@ -1,4 +1,4 @@
-import { existsSync, rmSync, statSync } from "node:fs";
+import { existsSync, rmSync, statSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { AppError, type git as contracts } from "@autoappz/contracts";
 import type { Logger } from "@autoappz/diagnostics";
@@ -372,12 +372,18 @@ function isLargeFile(absolute: string): boolean {
   }
 }
 
+/** Compares real paths: git reports canonical paths, while callers may hold symlinked or 8.3 short forms. */
 function samePath(a: string, b: string): boolean {
-  const norm = (p: string) =>
-    path
-      .resolve(p)
-      .replace(/[\\/]+$/, "")
-      .toLowerCase();
+  const norm = (p: string) => {
+    const resolved = path.resolve(p);
+    let real = resolved;
+    try {
+      real = realpathSync.native(resolved);
+    } catch {
+      /* not on disk yet: compare the resolved form */
+    }
+    return real.replace(/[\\/]+$/, "").toLowerCase();
+  };
   return norm(a) === norm(b);
 }
 

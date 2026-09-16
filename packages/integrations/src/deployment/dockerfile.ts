@@ -7,10 +7,10 @@ export function renderDockerfile(framework: FrameworkInfo): string {
   const pm = framework.packageManager;
   const install =
     pm === "pnpm"
-      ? "RUN corepack enable && pnpm install --frozen-lockfile"
+      ? "ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0\nRUN corepack enable && if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; else pnpm install; fi"
       : pm === "yarn"
-        ? "RUN corepack enable && yarn install --frozen-lockfile"
-        : "RUN npm ci";
+        ? "ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0\nRUN corepack enable && if [ -f yarn.lock ]; then yarn install --frozen-lockfile; else yarn install; fi"
+        : "RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi";
   const run = (script: string) => (pm === "npm" ? `npm run ${script}` : `${pm} run ${script}`);
   const lockfiles = "package.json pnpm-lock.yaml* yarn.lock* package-lock.json* pnpm-workspace.yaml* .npmrc*";
   if (

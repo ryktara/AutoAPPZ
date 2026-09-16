@@ -126,7 +126,7 @@ describe("framework detection", () => {
       packageManager: "npm",
     };
     const nodeFile = renderDockerfile(node);
-    expect(nodeFile).toContain("RUN npm ci");
+    expect(nodeFile).toContain("then npm ci; else npm install; fi");
     expect(nodeFile).toContain('CMD ["npm", "run", "start"]');
     expect(nodeFile).toContain("EXPOSE 3000");
     expect(renderDockerfile({ ...vite, framework: "nextjs", outputDir: ".next", static: false })).toContain(
