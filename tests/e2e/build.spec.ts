@@ -1,7 +1,8 @@
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from "@playwright/test";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { startFakeModelServer, type FakeModelServer } from "@autoappz/testing";
 
@@ -121,8 +122,26 @@ test("plan → approve → consent → changes: the vertical slice core", async 
   await expect(diff).toContainText("- ");
   await expect(diff).toContainText("Welcome, builder");
 
+  // Every writable task produces a checkpoint ref and a commit carrying the task trailer.
+  const projectDir = path.join(projectsDir, "build-app");
+  const gitOut = (...args: string[]) => execFileSync("git", args, { cwd: projectDir, encoding: "utf8" });
+  expect(existsSync(path.join(projectDir, ".git"))).toBe(true);
+  await expect
+    .poll(() => gitOut("log", "-1", "--format=%B"), { timeout: 10_000 })
+    .toContain("AutoAPPZ-Task: ");
+  expect(gitOut("for-each-ref", "refs/autoappz/checkpoints")).toContain("/base");
+  expect(gitOut("show", "--stat", "--format=", "HEAD")).toContain("src/App.tsx");
+
   await page.getByRole("tab", { name: "Project" }).click();
   await expect(page.getByRole("list", { name: "Permission rules" })).toContainText("src/**");
+  await expect(page.getByTestId("git-status")).toContainText("main");
+  await expect(page.getByRole("list", { name: "Checkpoints" })).toContainText("committed");
+
+  // Undo restores the file to its pre-task content while keeping the commit history intact.
+  await page.getByRole("tab", { name: "Changes" }).click();
+  await page.getByRole("button", { name: "Undo this task" }).click();
+  await expect(page.getByText(/Restored 1 file/)).toBeVisible();
+  expect(readFileSync(appFile, "utf8")).toContain("Your app is running");
 });
 
 test("reject leaves the project untouched", async () => {

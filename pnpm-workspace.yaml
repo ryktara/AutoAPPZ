@@ -11,6 +11,8 @@ allowBuilds:
   better-sqlite3: false
   # downloads the ripgrep binary for the current platform
   "@vscode/ripgrep": true
+  # downloads the embedded git for the current platform
+  dugite: true
 
 # @electron/rebuild (via electron-forge) resolves @electron/node-gyp from git.
 blockExoticSubdeps: false

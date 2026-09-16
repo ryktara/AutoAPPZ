@@ -19,6 +19,7 @@
     "@autoappz/contracts": "workspace:*",
     "@autoappz/core": "workspace:*",
     "@autoappz/diagnostics": "workspace:*",
+    "@autoappz/git": "workspace:*",
     "@autoappz/permissions": "workspace:*",
     "@autoappz/project": "workspace:*",
     "@autoappz/runtime": "workspace:*",
@@ -29,6 +30,7 @@
     "@vscode/ripgrep": "^1.18.0",
     "better-sqlite3": "^13.0.3",
     "diff": "^9.0.0",
+    "dugite": "^3.2.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

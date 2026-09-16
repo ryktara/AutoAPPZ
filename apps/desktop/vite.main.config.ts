@@ -8,8 +8,8 @@ export default defineConfig({
     emptyOutDir: false,
     sourcemap: true,
     lib: { entry: "src/main/index.ts", formats: ["cjs"], fileName: () => "main.cjs" },
-    // Native modules stay external and are resolved from node_modules at runtime.
-    rollupOptions: { external: ["electron", "better-sqlite3", "@vscode/ripgrep", /^node:/] },
+    // Native modules and binary-shipping packages (dugite locates its git via __dirname) stay external.
+    rollupOptions: { external: ["electron", "better-sqlite3", "@vscode/ripgrep", "dugite", /^node:/] },
     target: "node22",
   },
 });

@@ -45,6 +45,6 @@ export class ServiceContainer<TServices extends object> {
 
 export { TaskEventHub } from "./task-event-hub.ts";
 export { TaskService } from "./task-service.ts";
-export type { ProjectContextSource, TaskChange, TaskServiceOptions } from "./task-service.ts";
+export type { ProjectContextSource, TaskChange, TaskServiceOptions, TaskVcs } from "./task-service.ts";
 export { ChangeTracker } from "./change-tracker.ts";
 export type { ChangeStore } from "./change-tracker.ts";

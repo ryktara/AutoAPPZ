@@ -1,5 +1,6 @@
 import type { AnyDefinition } from "./definitions.ts";
 import * as blueprint from "./domains/blueprint.ts";
+import * as git from "./domains/git.ts";
 import * as memory from "./domains/memory.ts";
 import * as permissions from "./domains/permissions.ts";
 import * as project from "./domains/project.ts";
@@ -85,6 +86,17 @@ export const ALL_CONTRACTS: readonly AnyDefinition[] = [
   runtime.runtimeOutput,
   runtime.runtimeStateChanged,
   runtime.runtimeDiagnostic,
+  git.gitStatus,
+  git.gitInit,
+  git.gitCheckpoints,
+  git.gitTaskDiff,
+  git.gitUndoTask,
+  git.gitRestoreFile,
+  git.gitBranchFromCheckpoint,
+  git.gitBranches,
+  git.gitSwitch,
+  git.gitCommit,
+  git.gitChanged,
 ];
 
 export function contractNames(kind?: AnyDefinition["kind"]): readonly string[] {

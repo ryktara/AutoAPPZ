@@ -23,6 +23,7 @@ import { SecretService, type Cipher } from "@autoappz/secrets";
 import type { ProviderRegistry } from "@autoappz/ai-providers";
 import { createProviderRegistry, registerProviderHandlers } from "./providers-wiring.ts";
 import { createTaskService, registerTaskHandlers } from "./tasks-wiring.ts";
+import { createGitWiring, registerGitHandlers } from "./git-wiring.ts";
 import type { TaskService } from "@autoappz/core";
 import type { PermissionEngine } from "@autoappz/permissions";
 import type { ToolRuntime } from "@autoappz/tools";
@@ -47,6 +48,7 @@ import {
   ToolCallsRepository,
   UsageRecordsRepository,
   openDatabase,
+  CheckpointsRepository,
   type DatabaseHandle,
 } from "@autoappz/storage";
 
@@ -251,8 +253,16 @@ export function createServices(options: ServicesOptions): MainServices {
   });
   registerPermissionHandlers(bus, permissionsEngine, toolCalls);
 
+  const checkpointsRepo = new CheckpointsRepository(db.db);
+  const gitWiring = createGitWiring({
+    bus,
+    checkpoints: checkpointsRepo,
+    logger: log.child("git"),
+    now: options.now,
+  });
   const taskWiring = createTaskService({
     db: db.db,
+    vcs: gitWiring.vcs,
     usageRepo,
     providers,
     tools,
@@ -265,6 +275,21 @@ export function createServices(options: ServicesOptions): MainServices {
     now: options.now,
   });
   registerTaskHandlers(bus, taskWiring.service, taskWiring.sessions, taskWiring.messages);
+  registerGitHandlers(bus, {
+    git: gitWiring.git,
+    checkpoints: checkpointsRepo,
+    projects,
+    tasks: taskWiring.service,
+  });
+  // Managed projects start with an initial commit so the first task has a base to diff against.
+  projects.onChange((change) => {
+    if (change.kind !== "created") return;
+    const created = projects.get(change.id);
+    if (created.origin === "imported") return;
+    gitWiring.git.init(created.path, "Initial commit (AutoAPPZ)").catch((error: unknown) => {
+      log.warn("could not initialise git for new project", { projectId: change.id, message: String(error) });
+    });
+  });
 
   const runtime = createRuntimeSupervisor({
     planner: createCommandPlanner({ projects, templates, projectSettings }),

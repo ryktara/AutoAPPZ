@@ -23,3 +23,6 @@ Requires careful handling of merge/rebase-in-progress states (refuse with guidan
 
 ## Migration impact
 None.
+
+## Implementation addendum (M9, 2026-09-16)
+Undo is implemented as *restore task-touched paths from the base snapshot* rather than `git revert`. Because the base captures the user's uncommitted work before the task ran, restoring from it preserves those edits without a 3-way merge, and files outside the task are never touched; later user edits to task files are detected against the result commit and skipped unless forced. `git revert` remains available manually. Checkpoint metadata lives in `checkpoints {id, taskId, projectId, headBefore, baseSnapshotRef(+sha), resultCommit, createdAt}`.

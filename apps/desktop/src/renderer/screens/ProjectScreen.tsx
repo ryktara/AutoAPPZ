@@ -5,6 +5,7 @@ import { PermissionsPanel } from "./project/PermissionsPanel.tsx";
 import { PlanPanel } from "./project/PlanPanel.tsx";
 import { ExecutionPanel } from "./project/ExecutionPanel.tsx";
 import { ChangesPanel } from "./project/ChangesPanel.tsx";
+import { GitPanel } from "./project/GitPanel.tsx";
 import { PreviewPane } from "./project/PreviewPane.tsx";
 import { Dock } from "./project/Dock.tsx";
 import { useTaskStream } from "../state/use-task-stream.ts";
@@ -398,6 +399,7 @@ function ProjectPanel({ project: p }: { readonly project: project.Project }) {
 
   return (
     <div className="az-stack">
+      <GitPanel projectId={p.id} />
       <Card title="Project settings">
         {(rename.error ?? updateSettings.error) ? (
           <Banner tone="danger">{(rename.error ?? updateSettings.error)?.message}</Banner>

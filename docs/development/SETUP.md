@@ -37,6 +37,8 @@ See `docs/design/SYSTEM-ARCHITECTURE.md §2`. Each package builds with project r
 - If Electron's postinstall is interrupted you will see "Electron failed to install correctly": delete
   `%LOCALAPPDATA%/electron/Cache` (or `~/.cache/electron`) and re-run `pnpm install`.
 
+- `dugite` downloads an embedded git during `pnpm install` (allowed via `allowBuilds` in `pnpm-workspace.yaml`). The desktop main bundle keeps `dugite` external (it locates its binary relative to its own module directory) and Forge unpacks it from the asar.
+
 ## Environment variables
 
 | Variable | Purpose |

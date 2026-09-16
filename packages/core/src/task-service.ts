@@ -58,6 +58,23 @@ export interface ProjectContextSource {
   approvalThreshold(projectId: string): ApprovalThreshold;
 }
 
+/**
+ * Version-control port for build tasks (implemented with git in the desktop app). A checkpoint is taken
+ * before the first edit; the result is committed with a task trailer once the task completes.
+ */
+export interface TaskVcs {
+  checkpoint(task: {
+    id: string;
+    projectId: string;
+    projectPath: string;
+  }): Promise<{ ok: true; skippedLargeFiles: string[] } | { ok: false; reason: string }>;
+  commit(
+    task: { id: string; projectId: string; projectPath: string },
+    message: string,
+    paths: readonly string[],
+  ): Promise<{ sha: string | undefined }>;
+}
+
 export interface TaskServiceOptions {
   tasks: TasksRepository;
   events: TaskEventsRepository;
@@ -68,6 +85,7 @@ export interface TaskServiceOptions {
   tools: ToolRuntime;
   changes: ChangeTracker;
   context: ProjectContextSource;
+  vcs?: TaskVcs | undefined;
   logger?: Logger | undefined;
   now?: (() => number) | undefined;
   newId?: ((prefix: string) => string) | undefined;
@@ -373,7 +391,8 @@ export class TaskService {
         }
       }
 
-      // EXECUTE
+      // EXECUTE — snapshot the tree first so every edit can be undone.
+      if (!(await this.takeCheckpoint(task, live))) return;
       const summary = await this.builderLoop(task, live, ctx, profile.maxToolSteps);
       if (summary === undefined) return;
       task = this.apply(this.get(taskId), { type: "edits_applied" }); // → VALIDATE
@@ -443,19 +462,76 @@ export class TaskService {
       }
     }
     task = this.apply(task, { type: "review_passed" }); // → CHECKPOINT
-    this.hub.publish(task.id, {
-      kind: "note",
-      text: "Git checkpoints arrive in a later milestone; changes are recorded in the Changes pane.",
-    });
+    await this.commitCheckpoint(task, summary);
     // CHECKPOINT → COMPLETE happens in finish() via checkpoint_created, together with the summary message.
-    this.settle(
-      live.controller.signal.aborted ? task.id : task.id,
-      live,
-      summary,
-      undefined,
-      "answered",
-      true,
-    );
+    this.settle(task.id, live, summary, undefined, "answered", true);
+  }
+
+  private async takeCheckpoint(task: Task, live: Live): Promise<boolean> {
+    if (!this.o.vcs) return true;
+    const project = this.o.context.project(task.projectId);
+    try {
+      const result = await this.o.vcs.checkpoint({
+        id: task.id,
+        projectId: task.projectId,
+        projectPath: project.path,
+      });
+      if (result.ok) {
+        if (result.skippedLargeFiles.length > 0) {
+          this.hub.publish(task.id, {
+            kind: "note",
+            text: `Checkpoint created; ${String(result.skippedLargeFiles.length)} file(s) over the size cap were left out.`,
+          });
+        }
+        return true;
+      }
+      this.hub.publish(task.id, {
+        kind: "note",
+        text: `No checkpoint: ${result.reason}. Undo will not be available for this task.`,
+      });
+      return true;
+    } catch (error) {
+      // A refused checkpoint (merge in progress, git failure) must stop the task before any edit happens.
+      const message = error instanceof AppError ? error.message : String(error);
+      this.hub.publish(task.id, { kind: "error", message, retryable: true });
+      this.finish(
+        this.get(task.id),
+        { type: live.controller.signal.aborted ? "cancel" : "failed" },
+        "",
+        message,
+      );
+      return false;
+    }
+  }
+
+  private async commitCheckpoint(task: Task, summary: string): Promise<void> {
+    if (!this.o.vcs) return;
+    const paths = [...new Set(this.o.changes.list(task.id).map((c) => c.path))];
+    if (paths.length === 0) return;
+    const project = this.o.context.project(task.projectId);
+    const firstLine =
+      summary
+        .split("\n")
+        .find((l) => l.trim().length > 0)
+        ?.trim() ?? task.request;
+    const message = firstLine.length > 72 ? `${firstLine.slice(0, 69)}...` : firstLine;
+    try {
+      const { sha } = await this.o.vcs.commit(
+        { id: task.id, projectId: task.projectId, projectPath: project.path },
+        message,
+        paths,
+      );
+      if (sha)
+        this.hub.publish(task.id, {
+          kind: "note",
+          text: `Committed ${String(paths.length)} file(s) as ${sha.slice(0, 10)}.`,
+        });
+    } catch (error) {
+      // The edits are on disk and recorded; a failed commit is reported, not fatal.
+      const message = error instanceof AppError ? error.message : String(error);
+      this.o.logger?.warn("task commit failed", { taskId: task.id, message });
+      this.hub.publish(task.id, { kind: "note", text: `Changes were not committed: ${message}` });
+    }
   }
 
   private async planStep(

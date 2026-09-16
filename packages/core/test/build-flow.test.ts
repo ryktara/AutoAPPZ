@@ -17,7 +17,7 @@ import {
 } from "@autoappz/storage";
 import { collect, startFakeModelServer, withTempDir, type FakeModelServer } from "@autoappz/testing";
 import { FS_TOOLS, ToolRuntime, createSearchTool } from "@autoappz/tools";
-import { ChangeTracker, TaskEventHub, TaskService } from "../src/index.ts";
+import { ChangeTracker, TaskEventHub, TaskService, type TaskVcs } from "../src/index.ts";
 
 const PLAN = JSON.stringify({
   summary: "Change the greeting in App.tsx",
@@ -73,7 +73,7 @@ afterAll(async () => {
 async function boot(
   root: string,
   approval: "none" | "trivial" | "standard",
-  opts: { allowWrites?: boolean } = {},
+  opts: { allowWrites?: boolean; vcs?: TaskVcs } = {},
 ) {
   mkdirSync(path.join(root, "src"), { recursive: true });
   writeFileSync(path.join(root, "src", "App.tsx"), "export const App = () => <h1>Hello</h1>;\n");
@@ -162,6 +162,7 @@ async function boot(
       blueprint: () => null,
       approvalThreshold: () => approval,
     },
+    vcs: opts.vcs,
     newId: (p) => `${p}_${String(++n).padStart(3, "0")}`,
     hub: new TaskEventHub({ batchMs: 0 }),
   });
@@ -225,6 +226,58 @@ describe("build tasks", () => {
       const assistant = messages.list(task.sessionId).filter((m) => m.role === "assistant");
       expect(assistant.at(-1)?.content).toContain("Hi there");
       expect(service.get(taskId).cost.calls).toBe(4); // planner + 3 builder rounds
+    });
+  });
+
+  it("takes a checkpoint before the first edit and commits the touched paths with the summary", async () => {
+    await withTempDir(async (root) => {
+      const calls: string[] = [];
+      let contentAtCheckpoint = "";
+      const vcs: TaskVcs = {
+        checkpoint: (task) => {
+          calls.push(`checkpoint:${task.id}`);
+          contentAtCheckpoint = readFileSync(path.join(root, "src", "App.tsx"), "utf8");
+          return Promise.resolve({ ok: true, skippedLargeFiles: [] });
+        },
+        commit: (task, message, paths) => {
+          calls.push(`commit:${task.id}:${message}:${paths.join(",")}`);
+          return Promise.resolve({ sha: "abc123def456" });
+        },
+      };
+      const { service } = await boot(root, "standard", { allowWrites: true, vcs });
+      const { taskId } = service.submit({
+        projectId: "p1",
+        request:
+          "Please change the greeting in the app heading to something friendlier for first-time visitors",
+        mode: "build",
+      });
+      const chunks = await untilDone(service, taskId);
+      expect(service.get(taskId).state).toBe("COMPLETE");
+      expect(contentAtCheckpoint).toContain("Hello"); // snapshot happened before the patch
+      expect(calls[0]).toBe(`checkpoint:${taskId}`);
+      expect(calls[1]).toMatch(new RegExp(`^commit:${taskId}:.+:src/App[.]tsx$`));
+      expect(chunks.some((c) => c.kind === "note" && c.text.includes("abc123def4"))).toBe(true);
+    });
+  });
+
+  it("a refused checkpoint fails the task before any edit", async () => {
+    await withTempDir(async (root) => {
+      const vcs: TaskVcs = {
+        checkpoint: () => Promise.reject(new Error("A merge is in progress")),
+        commit: () => Promise.resolve({ sha: undefined }),
+      };
+      const { service } = await boot(root, "standard", { allowWrites: true, vcs });
+      const { taskId } = service.submit({
+        projectId: "p1",
+        request:
+          "Please change the greeting in the app heading to something friendlier for first-time visitors",
+        mode: "build",
+      });
+      await untilDone(service, taskId);
+      // Pre-edit failures are retryable, so they park in NEEDS_USER like any other tool/provider failure.
+      expect(service.get(taskId).state).toBe("NEEDS_USER");
+      expect(service.get(taskId).error).toContain("merge is in progress");
+      expect(readFileSync(path.join(root, "src", "App.tsx"), "utf8")).toContain("Hello");
     });
   });
 

@@ -9,6 +9,12 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@autoappz/contracts": "workspace:*"
+    "@autoappz/contracts": "workspace:*",
+    "@autoappz/diagnostics": "workspace:*",
+    "dugite": "^3.2.3"
+  },
+  "devDependencies": {
+    "@autoappz/testing": "workspace:*",
+    "fast-check": "^4.10.1"
   }
 }
