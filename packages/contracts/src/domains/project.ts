@@ -35,9 +35,21 @@ export const TemplateSchema = z.object({
     dev: RuntimeCommandSchema,
     build: RuntimeCommandSchema,
     test: RuntimeCommandSchema.optional(),
+    /** Applies database migrations (run before `dev` when the project has a database attached). */
+    migrate: RuntimeCommandSchema.optional(),
     /** Port the dev server listens on when given `--port <n>`; the supervisor assigns the number. */
     devPortFlag: z.string().min(1).default("--port"),
   }),
+  /** Environment variables the app expects; AutoAPPZ injects the ones it manages (e.g. DATABASE_URL). */
+  env: z
+    .array(
+      z.object({
+        name: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
+        description: z.string().max(300),
+        required: z.boolean().default(true),
+      }),
+    )
+    .default([]),
 });
 export type Template = z.infer<typeof TemplateSchema>;
 
@@ -137,6 +149,8 @@ export const ProjectSettingsSchema = z.object({
   runtimeProfile: RuntimeProfileSchema.default("host"),
   autoApprovePlansBelowComplexity: z.enum(["inherit", "none", "trivial", "standard"]).default("inherit"),
   contextBudgetTokens: z.number().int().min(4_000).max(400_000).default(60_000),
+  /** Integration id of the database attached to this project (DATABASE_URL is injected at runtime). */
+  databaseIntegrationId: z.string().min(1).optional(),
 });
 export type ProjectSettings = z.infer<typeof ProjectSettingsSchema>;
 

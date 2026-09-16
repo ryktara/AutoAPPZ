@@ -14,6 +14,7 @@ export { UsageRecordsRepository } from "./repositories/usage-records.ts";
 export { PermissionsRepository, ToolCallsRepository } from "./repositories/permissions.ts";
 export { CheckpointsRepository } from "./repositories/checkpoints.ts";
 export { TaskValidationsRepository } from "./repositories/task-validations.ts";
+export { IntegrationsRepository } from "./repositories/integrations.ts";
 export {
   MessagesRepository,
   SessionsRepository,

@@ -15,3 +15,4 @@ export * as runtime from "./domains/runtime.ts";
 export * as git from "./domains/git.ts";
 export * as context from "./domains/context.ts";
 export * as validation from "./domains/validation.ts";
+export * as integrations from "./domains/integrations.ts";

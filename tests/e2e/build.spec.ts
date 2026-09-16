@@ -153,6 +153,17 @@ test("plan → approve → consent → changes: the vertical slice core", async 
   await expect(page.getByTestId("git-status")).toContainText("main");
   await expect(page.getByRole("list", { name: "Checkpoints" })).toContainText("committed");
 
+  // Database integration hub: configure a Postgres connection that cannot be reached and see the status.
+  const database = page.getByRole("region", { name: "Database" });
+  await expect(database).toContainText("No database attached yet.");
+  await database.getByLabel("Name").fill("Unreachable");
+  await database.getByLabel("Connection string or password").fill("postgresql://u:p@127.0.0.1:1/app");
+  await database.getByRole("button", { name: "Save and test" }).click();
+  const databases = page.getByRole("list", { name: "Databases" });
+  await expect(databases).toContainText("Unreachable", { timeout: 15_000 });
+  await expect(databases).toContainText("attached");
+  await expect(databases).toContainText("error", { timeout: 15_000 });
+
   // Undo restores the file to its pre-task content while keeping the commit history intact.
   await page.getByRole("tab", { name: "Changes" }).click();
   await page.getByRole("button", { name: "Undo this task" }).click();

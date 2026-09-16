@@ -46,6 +46,9 @@ export const integrations = sqliteTable(
     config: text("config").notNull(), // JSON, secret-free
     status: text("status").notNull(),
     updatedAt: integer("updated_at").notNull(),
+    name: text("name").notNull().default(""), // (0005)
+    secretId: text("secret_id"), // (0005)
+    statusMessage: text("status_message"), // (0005)
   },
   (t) => [index("integrations_project_idx").on(t.projectId)],
 );

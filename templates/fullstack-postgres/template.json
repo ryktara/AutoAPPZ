@@ -1,0 +1,22 @@
+{
+  "id": "fullstack-postgres",
+  "displayName": "Full-stack + PostgreSQL",
+  "description": "React 19 + Vite frontend with a Hono API in the same dev server, Drizzle ORM migrations, cookie-session auth and a notes CRUD backed by PostgreSQL.",
+  "stack": ["react", "vite", "typescript", "hono", "drizzle", "postgresql", "vitest"],
+  "runtime": {
+    "install": ["pnpm", "install"],
+    "dev": ["pnpm", "run", "dev"],
+    "build": ["pnpm", "run", "build"],
+    "test": ["pnpm", "run", "test"],
+    "migrate": ["pnpm", "run", "db:migrate"],
+    "devPortFlag": "--port"
+  },
+  "env": [
+    {
+      "name": "DATABASE_URL",
+      "description": "PostgreSQL connection string (postgresql://user:password@host:5432/db). Attach a database in the Project tab and AutoAPPZ injects it.",
+      "required": true
+    }
+  ],
+  "exclude": []
+}

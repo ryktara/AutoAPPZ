@@ -21,11 +21,14 @@ export function createCommandPlanner(input: {
   projects: ProjectCatalog;
   templates: TemplateRegistry;
   projectSettings: ProjectSettingsService;
+  /** Extra environment for project processes (e.g. DATABASE_URL from the attached integration). */
+  env?: ((projectId: string) => Promise<Record<string, string>>) | undefined;
 }): CommandPlanner {
   return {
     packageManager: (projectId) => detectPackageManager(input.projects.get(projectId).path),
-    planPhase: (projectId, phase) => {
+    planPhase: async (projectId, phase) => {
       const project = input.projects.get(projectId);
+      const env = (await input.env?.(projectId)) ?? {};
       if (input.projectSettings.get(projectId).runtimeProfile === "container") {
         throw new AppError(
           "precondition",
@@ -73,10 +76,11 @@ export function createCommandPlanner(input: {
         args: rest,
         cwd: project.path,
         timeoutMs: PHASE_TIMEOUTS_MS[phase],
+        ...(Object.keys(env).length > 0 ? { env } : {}),
         portArgs:
           phase === "serve" ? (port) => [template?.runtime.devPortFlag ?? "--port", String(port)] : undefined,
       };
-      return Promise.resolve(plan);
+      return plan;
     },
   };
 }

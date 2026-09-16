@@ -26,6 +26,7 @@ import { createTaskService, registerTaskHandlers } from "./tasks-wiring.ts";
 import { createGitWiring, registerGitHandlers } from "./git-wiring.ts";
 import { createContextWiring, registerContextHandlers } from "./context-wiring.ts";
 import { createValidationWiring, registerValidationHandlers } from "./validation-wiring.ts";
+import { createIntegrationsWiring } from "./integrations-wiring.ts";
 import type { TaskService } from "@autoappz/core";
 import type { PermissionEngine } from "@autoappz/permissions";
 import type { ToolRuntime } from "@autoappz/tools";
@@ -52,6 +53,7 @@ import {
   openDatabase,
   CheckpointsRepository,
   TaskValidationsRepository,
+  IntegrationsRepository,
   type DatabaseHandle,
 } from "@autoappz/storage";
 
@@ -258,8 +260,17 @@ export function createServices(options: ServicesOptions): MainServices {
     logger: log.child("context"),
     now: options.now,
   });
+  const integrationsWiring = createIntegrationsWiring({
+    bus,
+    repo: new IntegrationsRepository(db.db),
+    secrets: secretService,
+    projects,
+    projectSettings,
+    logger: log.child("integrations"),
+    now: options.now,
+  });
   const tools = createToolRuntime({
-    extraTools: contextWiring.tools,
+    extraTools: [...contextWiring.tools, ...integrationsWiring.tools],
     permissions: permissionsEngine,
     audit: toolCalls,
     redactor: options.redactor,
@@ -326,7 +337,15 @@ export function createServices(options: ServicesOptions): MainServices {
   });
 
   const runtime = createRuntimeSupervisor({
-    planner: createCommandPlanner({ projects, templates, projectSettings }),
+    planner: createCommandPlanner({
+      projects,
+      templates,
+      projectSettings,
+      env: async (projectId) => {
+        const url = await integrationsWiring.databaseUrlFor(projectId);
+        return url ? { DATABASE_URL: url } : {};
+      },
+    }),
     bus,
     logger: log.child("runtime"),
     now: options.now,
@@ -355,6 +374,7 @@ export function createServices(options: ServicesOptions): MainServices {
     runtime,
     async close() {
       await runtime.stopAll();
+      await integrationsWiring.close();
       contextWiring.close();
       db.close();
     },

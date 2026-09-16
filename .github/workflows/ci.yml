@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        template: [react-vite]
+        template: [react-vite, fullstack-postgres]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -71,6 +71,45 @@ jobs:
           pnpm install
           pnpm build
           pnpm test
+
+  template-postgres:
+    name: template fullstack-postgres · local PostgreSQL
+    needs: check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app
+      AUTOAPPZ_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      # The integrations package runs its real-PostgreSQL tests when AUTOAPPZ_TEST_DATABASE_URL is set.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vitest run packages/integrations
+      # The template must migrate, pass its API tests against the database, and build on its own.
+      - run: |
+          cp -r templates/fullstack-postgres "$RUNNER_TEMP/tpl"
+          rm -f "$RUNNER_TEMP/tpl/template.json"
+          cd "$RUNNER_TEMP/tpl"
+          grep -q "@autoappz" package.json && { echo "template depends on @autoappz"; exit 1; } || true
+          pnpm install
+          pnpm db:migrate
+          pnpm test
+          pnpm build
 
   e2e:
     name: e2e · ${{ matrix.os }}

@@ -2,13 +2,22 @@
   "name": "@autoappz/integrations",
   "version": "0.0.0",
   "private": true,
-  "description": "External provider interfaces: databases, deployment, MCP, template sources (M11).",
+  "description": "Integration Hub: database adapters (Postgres, Supabase, Neon), SQL classification, gateway and agent tools; interfaces for deployment and MCP.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@autoappz/contracts": "workspace:*"
+    "@autoappz/contracts": "workspace:*",
+    "@autoappz/diagnostics": "workspace:*",
+    "@autoappz/tools": "workspace:*",
+    "pg": "^8.23.0",
+    "zod": "^4.3.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@types/pg": "^8.23.1",
+    "@autoappz/testing": "workspace:*"
   }
 }

@@ -22,6 +22,14 @@ export class ProjectSettingsService {
     return next;
   }
 
+  /** Removes an optional key (patches skip `undefined`, so clearing needs an explicit call). */
+  unset(projectId: string, field: keyof ProjectSettings): ProjectSettings {
+    const current = Object.fromEntries(Object.entries(this.get(projectId)).filter(([k]) => k !== field));
+    const next = contracts.ProjectSettingsSchema.parse(current);
+    this.repo.set(key(projectId), next);
+    return next;
+  }
+
   remove(projectId: string): void {
     this.repo.delete(key(projectId));
   }
