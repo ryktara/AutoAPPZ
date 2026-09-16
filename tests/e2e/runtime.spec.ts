@@ -32,7 +32,9 @@ test.beforeEach(async () => {
   await expect(page.getByTestId("project-name")).toHaveText("Runtime App");
 });
 
-test.afterEach(async (_fixtures, testInfo) => {
+// Playwright requires the fixtures parameter to be a destructuring pattern, even when none are used.
+// eslint-disable-next-line no-empty-pattern
+test.afterEach(async ({}, testInfo) => {
   await app.close();
   // The dev server's fate is only visible in the app's own log (readiness timeouts, spawn failures and the
   // process output tail are logged there); surface it in the report when a test fails.
