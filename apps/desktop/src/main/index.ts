@@ -8,6 +8,7 @@ import { HELLO_CHANNEL } from "../shared/bridge.ts";
 import { createElectronTransport } from "./electron-transport.ts";
 import { createSafeStorageCipher } from "./safe-storage-cipher.ts";
 import { createServices, type HostCapabilities, type MainServices } from "./services.ts";
+import { linuxPasswordStore } from "./security.ts";
 import { createMainWindow, installSessionHardening, trustPolicy } from "./window.ts";
 
 const dataDirectory = process.env["AUTOAPPZ_DATA_DIR"] ?? app.getPath("userData");
@@ -37,6 +38,9 @@ function templatesDirectory(): string {
 let services: MainServices | undefined;
 
 app.setAsDefaultProtocolClient("autoappz");
+
+const passwordStore = linuxPasswordStore(process.env, process.platform);
+if (passwordStore !== undefined) app.commandLine.appendSwitch("password-store", passwordStore);
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -77,6 +81,7 @@ if (!app.requestSingleInstanceLock()) {
     };
 
     try {
+      const cipher = createSafeStorageCipher();
       services = createServices({
         logger,
         redactor,
@@ -87,9 +92,10 @@ if (!app.requestSingleInstanceLock()) {
         templatesDir: templatesDirectory(),
         projectsDirectoryOverride: process.env["AUTOAPPZ_PROJECTS_DIR"],
         sessionId,
-        cipher: createSafeStorageCipher(),
+        cipher,
         host,
       });
+      logger.info("secure storage", { backend: cipher.backend, available: cipher.isAvailable() });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error("bootstrap failed", { message });

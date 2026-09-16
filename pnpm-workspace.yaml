@@ -13,6 +13,9 @@ allowBuilds:
   "@vscode/ripgrep": true
   # downloads the embedded git for the current platform
   dugite: true
+  # macOS-only dependencies of the DMG maker (electron-forge); pnpm 11 refuses to install with unlisted build scripts
+  fs-xattr: true
+  macos-alias: true
   # prepares Squirrel.Windows binaries for the Windows installer maker
   electron-winstaller: true
 

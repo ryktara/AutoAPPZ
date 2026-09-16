@@ -54,3 +54,17 @@ export function contentSecurityPolicy(devUrl: string | undefined): string {
 export function isExternalOpenAllowed(url: string): boolean {
   return /^https?:\/\//i.test(url);
 }
+
+/**
+ * Linux only: Chromium picks the OS keyring backend by desktop-environment sniffing, which fails on headless
+ * hosts (CI, some window managers) even when a keyring daemon is running. `AUTOAPPZ_PASSWORD_STORE` lets the
+ * operator name a real keyring backend explicitly; obfuscating stores ("basic") are never accepted, so this can
+ * only raise the bar, not lower it. Returns the value to pass as Chromium's `--password-store`, if any.
+ */
+export function linuxPasswordStore(env: NodeJS.ProcessEnv, platform: NodeJS.Platform): string | undefined {
+  if (platform !== "linux") return undefined;
+  const value = env["AUTOAPPZ_PASSWORD_STORE"]?.trim();
+  return value !== undefined && /^(gnome-libsecret|kwallet|kwallet5|kwallet6)$/.test(value)
+    ? value
+    : undefined;
+}

@@ -56,6 +56,7 @@ jobs:
       - if: failure()
         shell: bash
         run: |
+          set +e +o pipefail
           for f in install.log test.log; do
             [ -f "$f" ] || continue
             { echo "## $f (last 150 lines)"; echo '```'; tail -n 150 "$f"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
@@ -177,6 +178,8 @@ jobs:
           echo -n "ci" | gnome-keyring-daemon --unlock --replace --daemonize --components=secrets
           echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> "$GITHUB_ENV"
           echo "XDG_CURRENT_DESKTOP=GNOME" >> "$GITHUB_ENV"
+          # Headless hosts defeat Chromium's desktop sniffing; name the keyring backend explicitly (never "basic").
+          echo "AUTOAPPZ_PASSWORD_STORE=gnome-libsecret" >> "$GITHUB_ENV"
       - run: xvfb-run -a pnpm test:e2e 2>&1 | tee e2e.log
         shell: bash
         if: runner.os == 'Linux'
@@ -187,6 +190,7 @@ jobs:
       - if: failure()
         shell: bash
         run: |
+          set +e +o pipefail
           for f in install.log build.log deps.log e2e.log; do
             [ -f "$f" ] || continue
             { echo "## $f (last 150 lines)"; echo '```'; tail -n 150 "$f"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
@@ -196,7 +200,7 @@ jobs:
             [ -n "$t" ] || continue
             t=$(cygpath -u "$t" 2>/dev/null || echo "$t")
             find "$t" -path '*autoappz-e2e*' -name main.log 2>/dev/null | head -n 12 | while read -r log; do
-              { echo "## $log"; echo '```'; grep -iE '"level":"(error|warn)"|crash|exited' "$log" | tail -n 60; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+              { echo "## $log"; echo '```'; grep -iE '"level":"(error|warn)"|crash|exited|safeStorage|backend' "$log" | tail -n 80; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
             done
           done
       - uses: actions/upload-artifact@v6

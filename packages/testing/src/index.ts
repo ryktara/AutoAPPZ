@@ -26,7 +26,8 @@ export async function withTempDir<T>(fn: (dir: string) => Promise<T>, prefix = "
   try {
     return await fn(dir);
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    // Windows releases directory handles a beat after their owner closes; retry rather than fail the test.
+    await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 }
 

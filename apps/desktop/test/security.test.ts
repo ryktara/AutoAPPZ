@@ -4,6 +4,7 @@ import {
   isAppUrl,
   isExternalOpenAllowed,
   isTrustedFrame,
+  linuxPasswordStore,
 } from "../src/main/security.ts";
 
 const DEV = "http://localhost:5173/";
@@ -67,5 +68,20 @@ describe("isExternalOpenAllowed", () => {
   });
   it.each(["file:///etc/passwd", "javascript:alert(1)", "autoappz://x", "smb://share"])("blocks %s", (u) => {
     expect(isExternalOpenAllowed(u)).toBe(false);
+  });
+});
+
+describe("linuxPasswordStore", () => {
+  it("passes a named keyring backend through on Linux only", () => {
+    expect(linuxPasswordStore({ AUTOAPPZ_PASSWORD_STORE: "gnome-libsecret" }, "linux")).toBe(
+      "gnome-libsecret",
+    );
+    expect(linuxPasswordStore({ AUTOAPPZ_PASSWORD_STORE: "kwallet6" }, "linux")).toBe("kwallet6");
+    expect(linuxPasswordStore({ AUTOAPPZ_PASSWORD_STORE: "gnome-libsecret" }, "win32")).toBeUndefined();
+    expect(linuxPasswordStore({}, "linux")).toBeUndefined();
+  });
+  it("never accepts an obfuscating or unknown store", () => {
+    for (const v of ["basic", "basic_text", "", " ", "gnome-libsecret; --no-sandbox", "detect"])
+      expect(linuxPasswordStore({ AUTOAPPZ_PASSWORD_STORE: v }, "linux")).toBeUndefined();
   });
 });

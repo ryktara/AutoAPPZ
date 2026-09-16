@@ -37,6 +37,7 @@ export default defineConfig({
       "packages/*/test/**/*.test.tsx",
       "tests/integration/**/*.test.ts",
       "tests/security/**/*.test.ts",
+      "apps/desktop/test/**/*.test.ts",
     ],
     exclude: ["**/node_modules/**", "**/dist/**", "_reference/**", "tests/e2e/**", "**/test/fixtures/**"],
     environment: "node",
