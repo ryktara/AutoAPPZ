@@ -1,0 +1,27 @@
+# Reference repository clone used ONLY for reverse-engineering analysis.
+# It is never part of the AutoAPPZ source tree and must never be committed.
+_reference/
+
+# Dependencies / build output
+node_modules/
+dist/
+out/
+.vite/
+*.tsbuildinfo
+
+# Local state
+.env
+.env.*
+!.env.example
+userData/
+*.log
+coverage/
+playwright-report/
+test-results/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
