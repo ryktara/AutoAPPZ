@@ -11,6 +11,7 @@ export { ProjectsRepository } from "./repositories/projects.ts";
 export { BlueprintsRepository, RequirementsRepository } from "./repositories/blueprints.ts";
 export { ProjectMemoryRepository } from "./repositories/project-memory.ts";
 export { UsageRecordsRepository } from "./repositories/usage-records.ts";
+export { PermissionsRepository, ToolCallsRepository } from "./repositories/permissions.ts";
 export {
   MessagesRepository,
   SessionsRepository,

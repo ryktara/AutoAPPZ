@@ -9,6 +9,10 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@autoappz/contracts": "workspace:*"
+    "@autoappz/contracts": "workspace:*",
+    "@autoappz/diagnostics": "workspace:*"
+  },
+  "devDependencies": {
+    "fast-check": "^4.10.1"
   }
 }

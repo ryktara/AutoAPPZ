@@ -7,6 +7,7 @@ import type { RendererRuntime } from "./state/runtime.ts";
 import { HomeScreen } from "./screens/HomeScreen.tsx";
 import { ProjectScreen } from "./screens/ProjectScreen.tsx";
 import { SettingsScreen } from "./screens/SettingsScreen.tsx";
+import { ConsentSheet } from "./screens/ConsentSheet.tsx";
 
 const NAV = [
   { id: "home", label: "Projects" },
@@ -23,6 +24,7 @@ export function App({ runtime }: { readonly runtime: RendererRuntime }) {
     <RuntimeContext.Provider value={runtime}>
       <RouterContext.Provider value={router}>
         <Shell />
+        <ConsentSheet />
       </RouterContext.Provider>
     </RuntimeContext.Provider>
   );

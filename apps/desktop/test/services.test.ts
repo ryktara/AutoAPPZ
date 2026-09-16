@@ -1,6 +1,6 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { ALL_CONTRACTS, project, settings, workspace } from "@autoappz/contracts";
+import { ALL_CONTRACTS, permissions, project, settings, workspace } from "@autoappz/contracts";
 import { CommandBusClient, createLocalTransportPair } from "@autoappz/command-bus";
 import { createLoggerRoot, Redactor, RingBufferSink } from "@autoappz/diagnostics";
 import { createFakeCipher } from "@autoappz/secrets";
@@ -42,6 +42,7 @@ function boot(dir: string) {
     cipher: createFakeCipher(),
     host: fakeHost,
     dbPath: path.join(dir, "data", "autoappz.db"),
+    consentTimeoutMs: 2_000,
   });
   const peer = { peerId: "window-1", trusted: true };
   const [hostSide, clientSide] = createLocalTransportPair(peer);
@@ -163,6 +164,89 @@ describe("project handlers", () => {
       expect(changes).toEqual([`created:${created.id}`]);
       const picked = await client.dispatch(project.dialogPickDirectory, {});
       expect(picked).toEqual({ path: null });
+    });
+  });
+});
+
+describe("tool runtime + consent over the bus", () => {
+  it("parks a write, surfaces the consent request as an event, applies the choice and audits", async () => {
+    await withServices(async ({ client, services }) => {
+      const created = await client.dispatch(project.projectCreate, {
+        name: "Perm App",
+        templateId: "react-vite",
+      });
+      // a task row is required for the audit FK; tasks come from M4's runner, so insert one directly
+      const { SessionsRepository, TasksRepository } = await import("@autoappz/storage");
+      new SessionsRepository(services.db.db).insert({
+        id: "s1",
+        projectId: created.id,
+        title: "t",
+        createdAt: 1,
+        lastActiveAt: 1,
+      });
+      new TasksRepository(services.db.db).insert({
+        id: "t1",
+        projectId: created.id,
+        sessionId: "s1",
+        mode: "ask",
+        request: "r",
+        complexity: "standard",
+        state: "EXECUTE",
+        cost: { calls: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 },
+        createdAt: 1,
+        updatedAt: 1,
+      });
+
+      const requests: string[] = [];
+      client.on(permissions.consentRequested, (r) => requests.push(r.id));
+      await new Promise((r) => setTimeout(r, 5));
+
+      const { ReadLedger } = await import("@autoappz/tools");
+      const ledger = new ReadLedger();
+      const run = (toolId: string, input: unknown) =>
+        services.tools.execute({
+          toolId,
+          input,
+          projectId: created.id,
+          projectRoot: created.path,
+          taskId: "t1",
+          signal: new AbortController().signal,
+          ledger,
+        });
+
+      const read = await run("fs.read", { path: "src/App.tsx" });
+      expect(read.ok).toBe(true);
+
+      const write = run("fs.patch", {
+        path: "src/App.tsx",
+        edits: [{ find: "Your app is running", replace: "Hello from AutoAPPZ" }],
+      });
+      await new Promise((r) => setTimeout(r, 10));
+      expect(requests).toHaveLength(1);
+      const pending = await client.dispatch(permissions.permissionsPending, { projectId: created.id });
+      expect(pending[0]).toMatchObject({
+        id: requests[0],
+        toolId: "fs.patch",
+        scope: "src/App.tsx",
+        risk: "medium",
+      });
+      await client.dispatch(permissions.permissionsRespond, {
+        requestId: requests[0]!,
+        choice: "allow_project",
+      });
+      expect((await write).ok).toBe(true);
+
+      const rules = await client.dispatch(permissions.permissionsPolicies, { projectId: created.id });
+      expect(rules).toHaveLength(1);
+      expect(rules[0]).toMatchObject({ capability: "fs.write", scopePattern: "src/**", lifetime: "project" });
+
+      const audit = await client.dispatch(permissions.toolAudit, { taskId: "t1" });
+      expect(audit.map((a) => [a.toolId, a.decision, a.decisionSource, a.ok])).toEqual([
+        ["fs.read", "allow", "default", true],
+        ["fs.patch", "allow", "user", true],
+      ]);
+      await client.dispatch(permissions.permissionsRevoke, { id: rules[0]!.id });
+      expect(await client.dispatch(permissions.permissionsPolicies, { projectId: created.id })).toEqual([]);
     });
   });
 });

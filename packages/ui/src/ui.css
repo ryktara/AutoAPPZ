@@ -530,3 +530,40 @@ pre {
   font-size: 12px;
   padding-top: var(--space-2);
 }
+
+/* Consent sheet */
+.az-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-text) 35%, transparent);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: var(--space-5);
+  z-index: 50;
+}
+.az-sheet {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  width: min(720px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  box-shadow: 0 16px 48px color-mix(in srgb, var(--color-text) 25%, transparent);
+}
+.az-consent-desc {
+  margin: 0;
+  font-size: 15px;
+}
+.az-preview {
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  padding: var(--space-3);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+}

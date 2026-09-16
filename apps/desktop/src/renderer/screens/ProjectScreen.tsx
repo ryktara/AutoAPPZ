@@ -1,6 +1,7 @@
 import { useId, useMemo, useState } from "react";
 import { RequestPane } from "./project/RequestPane.tsx";
 import { TranscriptPanel } from "./project/TranscriptPanel.tsx";
+import { PermissionsPanel } from "./project/PermissionsPanel.tsx";
 import { useTaskStream } from "../state/use-task-stream.ts";
 import { blueprint, memory, project } from "@autoappz/contracts";
 
@@ -464,6 +465,8 @@ function ProjectPanel({ project: p }: { readonly project: project.Project }) {
           </>
         ) : null}
       </Card>
+
+      <PermissionsPanel projectId={p.id} />
 
       <Card
         title="Remove project"

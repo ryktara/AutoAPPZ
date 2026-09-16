@@ -1,6 +1,7 @@
 import type { AnyDefinition } from "./definitions.ts";
 import * as blueprint from "./domains/blueprint.ts";
 import * as memory from "./domains/memory.ts";
+import * as permissions from "./domains/permissions.ts";
 import * as project from "./domains/project.ts";
 import * as providers from "./domains/providers.ts";
 import * as settings from "./domains/settings.ts";
@@ -60,6 +61,13 @@ export const ALL_CONTRACTS: readonly AnyDefinition[] = [
   tasks.sessionList,
   tasks.sessionMessages,
   tasks.taskChanged,
+  permissions.permissionsPolicies,
+  permissions.permissionsRevoke,
+  permissions.permissionsPending,
+  permissions.permissionsRespond,
+  permissions.consentRequested,
+  permissions.consentResolved,
+  permissions.toolAudit,
 ];
 
 export function contractNames(kind?: AnyDefinition["kind"]): readonly string[] {

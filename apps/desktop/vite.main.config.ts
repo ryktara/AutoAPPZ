@@ -9,7 +9,7 @@ export default defineConfig({
     sourcemap: true,
     lib: { entry: "src/main/index.ts", formats: ["cjs"], fileName: () => "main.cjs" },
     // Native modules stay external and are resolved from node_modules at runtime.
-    rollupOptions: { external: ["electron", "better-sqlite3", /^node:/] },
+    rollupOptions: { external: ["electron", "better-sqlite3", "@vscode/ripgrep", /^node:/] },
     target: "node22",
   },
 });

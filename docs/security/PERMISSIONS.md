@@ -18,3 +18,7 @@ Risk tiers: `low` (read within project), `medium` (write within project, run pro
 
 ## UI
 Consent sheet with: what will happen, where (paths/hosts/tables), why (task step), choices (Allow once / this session / this project / Deny). Project settings show all standing policies with revoke.
+
+## Implementation (M5)
+
+`packages/permissions` (`PermissionEngine`, glob scope matching) and `packages/tools` (`ToolRuntime` pipeline, path policy, read ledger). Project-lifetime rules are stored in the `permissions` table; session/once rules are in memory. Consent requests reach the renderer as `permissions.consentRequested` events and are answered with `permissions.respond`; the sheet lists tool, scope, risk tier and effect and offers Allow once / this session / this project (hidden for destructive actions) / Deny. Standing rules are listed per project with revoke. Audit rows live in `tool_calls` and are exposed through `tools.audit`.

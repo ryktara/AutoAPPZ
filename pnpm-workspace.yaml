@@ -9,6 +9,8 @@ allowBuilds:
   esbuild: true
   # better-sqlite3 ships N-API prebuilds; never run its node-gyp fallback.
   better-sqlite3: false
+  # downloads the ripgrep binary for the current platform
+  "@vscode/ripgrep": true
 
 # @electron/rebuild (via electron-forge) resolves @electron/node-gyp from git.
 blockExoticSubdeps: false
@@ -23,3 +25,4 @@ minimumReleaseAgeExclude:
   - "@ai-sdk/provider@4.0.15"
   - "@ai-sdk/xai@5.0.0"
   - ai@7.0.102
+  - fast-check@4.10.1

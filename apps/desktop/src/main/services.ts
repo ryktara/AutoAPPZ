@@ -24,6 +24,14 @@ import type { ProviderRegistry } from "@autoappz/ai-providers";
 import { createProviderRegistry, registerProviderHandlers } from "./providers-wiring.ts";
 import { createTaskService, registerTaskHandlers } from "./tasks-wiring.ts";
 import type { TaskService } from "@autoappz/core";
+import type { PermissionEngine } from "@autoappz/permissions";
+import type { ToolRuntime } from "@autoappz/tools";
+import {
+  createPermissionEngine,
+  createToolRuntime,
+  registerPermissionHandlers,
+  ripgrepPath,
+} from "./permissions-wiring.ts";
 import {
   BlueprintsRepository,
   PLATFORM_DB_FILENAME,
@@ -32,7 +40,9 @@ import {
   RequirementsRepository,
   SecretRefsRepository,
   SettingsRepository,
+  PermissionsRepository,
   SettingsService,
+  ToolCallsRepository,
   UsageRecordsRepository,
   openDatabase,
   type DatabaseHandle,
@@ -54,6 +64,8 @@ export interface MainServices {
   readonly projects: ProjectCatalog;
   readonly providers: ProviderRegistry;
   readonly tasks: TaskService;
+  readonly permissions: PermissionEngine;
+  readonly tools: ToolRuntime;
   close(): void;
 }
 
@@ -71,6 +83,10 @@ export interface ServicesOptions {
   sessionId: string;
   cipher: Cipher;
   host: HostCapabilities;
+  /** Consent deadline; tests shorten it. */
+  consentTimeoutMs?: number | undefined;
+  /** Absolute path to a ripgrep binary; defaults to the bundled one. */
+  rgPath?: string | undefined;
   /** Defaults to `<dataDirectory>/autoappz.db`; ":memory:" for tests. */
   dbPath?: string | undefined;
   now?: (() => number) | undefined;
@@ -225,6 +241,24 @@ export function createServices(options: ServicesOptions): MainServices {
   });
   registerTaskHandlers(bus, taskWiring.service, taskWiring.sessions, taskWiring.messages);
 
+  const permissionsEngine = createPermissionEngine({
+    repo: new PermissionsRepository(db.db),
+    bus,
+    logger: log.child("permissions"),
+    now: options.now,
+    consentTimeoutMs: options.consentTimeoutMs,
+  });
+  const toolCalls = new ToolCallsRepository(db.db);
+  const tools = createToolRuntime({
+    permissions: permissionsEngine,
+    audit: toolCalls,
+    redactor: options.redactor,
+    logger: log.child("tools"),
+    rgPath: options.rgPath ?? ripgrepPath(),
+    now: options.now,
+  });
+  registerPermissionHandlers(bus, permissionsEngine, toolCalls);
+
   const unhandled = bus.unhandledContracts();
   if (unhandled.length > 0) {
     throw new AppError(
@@ -242,6 +276,8 @@ export function createServices(options: ServicesOptions): MainServices {
     projects,
     providers,
     tasks: taskWiring.service,
+    permissions: permissionsEngine,
+    tools,
     close() {
       db.close();
     },
