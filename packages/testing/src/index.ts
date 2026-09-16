@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -22,7 +22,9 @@ export async function collect<T>(iterable: AsyncIterable<T>): Promise<T[]> {
 }
 
 export async function withTempDir<T>(fn: (dir: string) => Promise<T>, prefix = "autoappz-test-"): Promise<T> {
-  const dir = await mkdtemp(join(tmpdir(), prefix));
+  // Canonical path: macOS TMPDIR is a symlink and Windows CI TEMP uses 8.3 short names; tools under test
+  // (git, eslint, vitest) report real paths, so tests must hold the same form.
+  const dir = await realpath(await mkdtemp(join(tmpdir(), prefix)));
   try {
     return await fn(dir);
   } finally {

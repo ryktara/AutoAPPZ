@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { statSync } from "node:fs";
+import { realpathSync, statSync } from "node:fs";
 import path from "node:path";
 import { buildChildEnv, resolveCmdShim, resolveExecutable, type ResolvedCommand } from "./command.ts";
 import { LineSplitter } from "./output.ts";
@@ -121,8 +121,17 @@ export function runCommand(input: RunCommandInput): Promise<CommandRun> {
 /** Relative, forward-slash form of a path printed by a tool (absolute or cwd-relative). */
 export function toProjectRelative(projectRoot: string, file: string): string {
   const abs = path.isAbsolute(file) ? file : path.join(projectRoot, file);
-  const rel = path.relative(projectRoot, abs);
+  // Tools print canonical paths (macOS /private/var, Windows long names); compare canonical to canonical.
+  const rel = path.relative(canonical(projectRoot), canonical(abs));
   return (rel.startsWith("..") ? file : rel).replace(/\\/g, "/");
+}
+
+function canonical(p: string): string {
+  try {
+    return realpathSync.native(p);
+  } catch {
+    return p;
+  }
 }
 
 function isFile(p: string): boolean {

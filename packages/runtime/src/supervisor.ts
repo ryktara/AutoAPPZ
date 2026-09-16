@@ -490,6 +490,17 @@ export class RuntimeSupervisor {
         message: managed.info.lastError ?? "crashed",
         at: nowMs,
       });
+      // A dev server that never became ready is the one failure users cannot see in the preview; keep its
+      // last output lines in the main log (already redacted by the sink) so the cause survives the session.
+      this.o.logger?.warn("serve process crashed", {
+        projectId,
+        code,
+        wasRunning: managed.wasRunning,
+        tail: rt.output
+          .list({ phase, limit: 12 })
+          .map((l) => l.text)
+          .join("\n"),
+      });
       this.emit(managed);
       return;
     }
