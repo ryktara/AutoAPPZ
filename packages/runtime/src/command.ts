@@ -80,7 +80,8 @@ export function resolveCmdShim(shimPath: string, env: NodeJS.ProcessEnv): Resolv
   const entry = [...text.matchAll(/"%(?:~)?dp0%?\\?([^"]+)"/gi)]
     .map((m) => m[1] ?? "")
     .filter((p) => p.length > 0 && !/node\.exe$/i.test(p))
-    .map((p) => path.join(dir, p.replace(/^\\/, "")))
+    // Shims always use backslashes; split on them so the parser also works on POSIX hosts.
+    .map((p) => path.join(dir, ...p.replace(/^\\/, "").split("\\")))
     .find((p) => isFile(p));
   if (!entry) return undefined;
   const localNode = path.join(dir, "node.exe");

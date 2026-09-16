@@ -16,8 +16,8 @@ export interface DockerAdapterOptions {
 export function imageTagFor(projectRoot: string, configured: string | undefined): string {
   if (configured) return configured;
   const base =
-    path
-      .basename(projectRoot)
+    // Accept either separator so a Windows project root yields the same tag on every host.
+    (projectRoot.split(/[\\/]/).filter(Boolean).at(-1) ?? "")
       .toLowerCase()
       .replace(/[^a-z0-9._-]+/g, "-")
       .replace(/^[-.]+/, "") || "app";
