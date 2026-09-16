@@ -2,11 +2,22 @@ import { useEffect, useState } from "react";
 import { tasks, type AppError } from "@autoappz/contracts";
 import { useRuntime } from "./hooks.ts";
 
+export interface ToolActivity {
+  readonly callId: string;
+  readonly toolId: string;
+  readonly description: string;
+  readonly status: "running" | "ok" | "error";
+  readonly summary: string;
+}
+
 export interface TaskStreamView {
   readonly state: tasks.TaskState | undefined;
   readonly model: { providerId: string; modelId: string; reason: string } | undefined;
   readonly text: string;
   readonly reasoning: string;
+  readonly plan: tasks.Plan | undefined;
+  readonly tools: readonly ToolActivity[];
+  readonly notes: readonly string[];
   readonly cost: tasks.TaskCost | undefined;
   readonly error: { message: string; retryable: boolean } | undefined;
   readonly done: boolean;
@@ -17,6 +28,9 @@ const EMPTY: TaskStreamView = {
   model: undefined,
   text: "",
   reasoning: "",
+  plan: undefined,
+  tools: [],
+  notes: [],
   cost: undefined,
   error: undefined,
   done: false,
@@ -36,7 +50,9 @@ export function useTaskStream(taskId: string | undefined): TaskStreamView {
       {
         onChunk: (chunk) => {
           setView((v) => fold(v, chunk));
-          if (chunk.kind === "done") cache.invalidate(["messages", "tasks", "sessions", "usage"]);
+          if (chunk.kind === "state" || chunk.kind === "done") cache.invalidate(["tasks"]);
+          if (chunk.kind === "tool-result") cache.invalidate(["changes", "audit", "permissions"]);
+          if (chunk.kind === "done") cache.invalidate(["messages", "sessions", "usage", "changes", "audit"]);
         },
         onEnd: () => {
           setView((v) => ({ ...v, done: true }));
@@ -71,6 +87,31 @@ function fold(v: TaskStreamView, chunk: tasks.TaskStreamChunk): TaskStreamView {
       return { ...v, text: v.text + chunk.delta };
     case "reasoning":
       return { ...v, reasoning: v.reasoning + chunk.delta };
+    case "plan":
+      return { ...v, plan: chunk.plan };
+    case "tool-call":
+      return {
+        ...v,
+        tools: [
+          ...v.tools,
+          {
+            callId: chunk.callId,
+            toolId: chunk.toolId,
+            description: chunk.description,
+            status: "running",
+            summary: "",
+          },
+        ],
+      };
+    case "tool-result":
+      return {
+        ...v,
+        tools: v.tools.map((t) =>
+          t.callId === chunk.callId ? { ...t, status: chunk.ok ? "ok" : "error", summary: chunk.summary } : t,
+        ),
+      };
+    case "note":
+      return { ...v, notes: [...v.notes, chunk.text] };
     case "usage":
       return { ...v, cost: chunk.cost };
     case "error":

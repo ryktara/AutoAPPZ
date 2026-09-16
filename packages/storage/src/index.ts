@@ -15,6 +15,7 @@ export { PermissionsRepository, ToolCallsRepository } from "./repositories/permi
 export {
   MessagesRepository,
   SessionsRepository,
+  TaskChangesRepository,
   TaskEventsRepository,
   TasksRepository,
 } from "./repositories/tasks.ts";

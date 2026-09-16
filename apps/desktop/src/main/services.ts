@@ -229,17 +229,6 @@ export function createServices(options: ServicesOptions): MainServices {
   });
 
   registerProviderHandlers(bus, providers, usageRepo);
-  const taskWiring = createTaskService({
-    db: db.db,
-    usageRepo,
-    providers,
-    projects,
-    memory: projectMemory,
-    blueprints,
-    logger: log.child("tasks"),
-    now: options.now,
-  });
-  registerTaskHandlers(bus, taskWiring.service, taskWiring.sessions, taskWiring.messages);
 
   const permissionsEngine = createPermissionEngine({
     repo: new PermissionsRepository(db.db),
@@ -258,6 +247,21 @@ export function createServices(options: ServicesOptions): MainServices {
     now: options.now,
   });
   registerPermissionHandlers(bus, permissionsEngine, toolCalls);
+
+  const taskWiring = createTaskService({
+    db: db.db,
+    usageRepo,
+    providers,
+    tools,
+    projects,
+    projectSettings,
+    userSettings: () => settingsService.get(),
+    memory: projectMemory,
+    blueprints,
+    logger: log.child("tasks"),
+    now: options.now,
+  });
+  registerTaskHandlers(bus, taskWiring.service, taskWiring.sessions, taskWiring.messages);
 
   const unhandled = bus.unhandledContracts();
   if (unhandled.length > 0) {

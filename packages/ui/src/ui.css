@@ -567,3 +567,58 @@ pre {
   border-radius: var(--radius-md);
   font-size: 12px;
 }
+
+/* Plan, execution, changes */
+.az-plan-steps {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.az-plain-list {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-5);
+}
+.az-clamp {
+  white-space: pre-wrap;
+  max-height: 4.5em;
+  overflow: hidden;
+}
+.az-linklike {
+  all: unset;
+  cursor: pointer;
+  text-align: left;
+}
+.az-linklike[aria-current="true"] code {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.az-changes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.az-diff {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  overflow: auto;
+  max-height: 60vh;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.az-diff-add {
+  display: block;
+  background: color-mix(in srgb, var(--color-success) 14%, transparent);
+}
+.az-diff-del {
+  display: block;
+  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+}
+.az-diff-ctx {
+  display: block;
+  color: var(--color-text-muted);
+}

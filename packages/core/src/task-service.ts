@@ -1,11 +1,28 @@
 import {
   INITIAL_TASK_STATE,
+  autoApproves,
   buildAskSystemPrompt,
+  buildBuilderSystemPrompt,
+  buildPlannerSystemPrompt,
+  buildReviewerSystemPrompt,
   classifyComplexity,
+  parsePlan,
+  parseReview,
+  plannerUserMessage,
+  profileFor,
+  reviewerUserMessage,
   transition,
+  type ApprovalThreshold,
+  type ProjectPromptContext,
   type TaskEvent,
 } from "@autoappz/agent";
-import type { ChatMessage, ProviderRegistry } from "@autoappz/ai-providers";
+import type {
+  ChatChunk,
+  ChatMessage,
+  ProviderRegistry,
+  ToolCallRequest,
+  ToolCallResult,
+} from "@autoappz/ai-providers";
 import {
   AppError,
   tasks as contracts,
@@ -22,6 +39,10 @@ import type {
   TasksRepository,
   UsageRecordsRepository,
 } from "@autoappz/storage";
+import { ReadLedger, type ToolRuntime } from "@autoappz/tools";
+import { readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { ChangeTracker } from "./change-tracker.ts";
 import { TaskEventHub } from "./task-event-hub.ts";
 
 type Task = contracts.Task;
@@ -33,6 +54,8 @@ export interface ProjectContextSource {
   project(projectId: string): project.Project;
   memory(projectId: string): memory.ProjectMemoryItem[];
   blueprint(projectId: string): blueprint.BlueprintDocument | null;
+  /** Effective approval threshold for a project (project setting or inherited user setting). */
+  approvalThreshold(projectId: string): ApprovalThreshold;
 }
 
 export interface TaskServiceOptions {
@@ -42,6 +65,8 @@ export interface TaskServiceOptions {
   messages: MessagesRepository;
   usage: UsageRecordsRepository;
   providers: ProviderRegistry;
+  tools: ToolRuntime;
+  changes: ChangeTracker;
   context: ProjectContextSource;
   logger?: Logger | undefined;
   now?: (() => number) | undefined;
@@ -59,17 +84,36 @@ export interface TaskChange {
 }
 
 const MAX_REPAIR_ATTEMPTS = 3;
+const MAX_REVIEW_ROUNDS = 1;
+
+interface Live {
+  controller: AbortController;
+  ledger: ReadLedger;
+  modelCalls: number;
+  toolSteps: number;
+  reviewRounds: number;
+  /** Resolves when the user approves/revises/rejects. */
+  approval?:
+    | {
+        resolve: (
+          decision: { type: "approved" } | { type: "revise"; feedback: string } | { type: "rejected" },
+        ) => void;
+      }
+    | undefined;
+  feedback?: string | undefined;
+}
 
 /**
- * Runs tasks. M4 implements the read-only `ask` flow end to end: journaled transitions, per-session
- * serialisation, streaming through the hub, cancellation, partial persistence and cost accounting.
+ * Runs tasks through the pure state machine with journaled transitions.
+ * `ask` tasks answer read-only; `build` tasks plan (optionally gated by approval), execute with tools
+ * under the permission engine, validate (validators arrive in M10), review (per profile) and complete.
  */
 export class TaskService {
   readonly hub: TaskEventHub;
   private readonly o: TaskServiceOptions;
   private readonly now: () => number;
   private readonly newId: (prefix: string) => string;
-  private readonly controllers = new Map<string, AbortController>();
+  private readonly live = new Map<string, Live>();
   private readonly sessionQueues = new Map<string, Promise<void>>();
   private readonly listeners = new Set<(change: TaskChange) => void>();
 
@@ -92,8 +136,7 @@ export class TaskService {
     const recovered: Task[] = [];
     for (const task of this.o.tasks.listNonTerminal()) {
       if (task.state === "INTERRUPTED" || task.state === "NEEDS_USER") continue;
-      const next = this.apply(task, { type: "process_exit" });
-      recovered.push(next);
+      recovered.push(this.apply(task, { type: "process_exit" }));
     }
     if (recovered.length > 0) this.o.logger?.warn("recovered interrupted tasks", { count: recovered.length });
     return recovered;
@@ -105,16 +148,13 @@ export class TaskService {
     request: string;
     mode: contracts.TaskMode;
   }): { taskId: string; sessionId: string } {
-    if (input.mode !== "ask") {
-      throw new AppError(
-        "precondition",
-        "task.mode_unsupported",
-        "Build tasks arrive in a later milestone; this version answers questions only.",
-      );
-    }
     const project = this.o.context.project(input.projectId);
     const complexity = classifyComplexity(input.request);
-    const route = this.o.providers.route({ intent: intentFor(complexity), complexity });
+    const route = this.o.providers.route({
+      intent: intentFor(input.mode, complexity),
+      complexity,
+      requires: input.mode === "build" ? { toolCalling: true } : undefined,
+    });
     if (!route) {
       throw new AppError(
         "precondition",
@@ -122,7 +162,6 @@ export class TaskService {
         "No model provider is ready. Enable one in Settings → Model providers.",
       );
     }
-
     const at = this.now();
     const session = this.ensureSession(project, input.sessionId, input.request, at);
     const task: Task = {
@@ -144,7 +183,7 @@ export class TaskService {
       fromState: undefined,
       toState: task.state,
       event: "submit",
-      payload: { complexity },
+      payload: { complexity, mode: input.mode },
       at,
     });
     this.o.messages.insert({
@@ -168,7 +207,7 @@ export class TaskService {
     // One task at a time per session so the transcript stays coherent under rapid submits.
     const previous = this.sessionQueues.get(session.id) ?? Promise.resolve();
     const run = previous
-      .then(() => this.runAsk(task.id))
+      .then(() => (input.mode === "ask" ? this.runAsk(task.id) : this.runBuild(task.id)))
       .catch((error: unknown) => {
         this.o.logger?.error("task runner crashed", {
           taskId: task.id,
@@ -182,9 +221,33 @@ export class TaskService {
   cancel(taskId: string): void {
     const task = this.get(taskId);
     if (contracts.isTerminalTaskState(task.state)) return;
-    const controller = this.controllers.get(taskId);
-    if (controller) controller.abort();
-    else this.finish(task, { type: "cancel" }, "", undefined);
+    const live = this.live.get(taskId);
+    if (live) {
+      live.approval?.resolve({ type: "rejected" });
+      live.controller.abort();
+    } else this.finish(task, { type: "cancel" }, "", undefined);
+  }
+
+  approve(taskId: string): void {
+    this.decide(taskId, { type: "approved" });
+  }
+
+  revise(taskId: string, feedback: string): void {
+    this.decide(taskId, { type: "revise", feedback });
+  }
+
+  reject(taskId: string): void {
+    this.decide(taskId, { type: "rejected" });
+  }
+
+  /** INTERRUPTED tasks resume into VALIDATE; edits are never re-executed. */
+  resume(taskId: string): void {
+    const task = this.get(taskId);
+    if (task.state !== "INTERRUPTED")
+      throw new AppError("precondition", "task.not_interrupted", "Only interrupted tasks can be resumed.");
+    const previous = this.sessionQueues.get(task.sessionId) ?? Promise.resolve();
+    const run = previous.then(() => this.runFromValidate(taskId, { type: "resume" })).catch(() => undefined);
+    this.sessionQueues.set(task.sessionId, run);
   }
 
   get(taskId: string): Task {
@@ -197,26 +260,36 @@ export class TaskService {
     return this.o.tasks.list(projectId, limit);
   }
 
+  changes(taskId: string): contracts.TaskChange[] {
+    this.get(taskId);
+    return this.o.changes.list(taskId);
+  }
+
   stream(taskId: string, signal: AbortSignal): AsyncIterable<TaskStreamChunk> {
     const task = this.get(taskId);
     if (!this.hub.has(taskId)) {
-      // Nothing live: synthesise the terminal picture from the record.
       this.hub.publish(taskId, { kind: "state", state: task.state });
       if (task.model) this.hub.publish(taskId, { kind: "model", model: task.model, reason: "recorded" });
+      if (task.plan) this.hub.publish(taskId, { kind: "plan", plan: task.plan });
       if (task.error) this.hub.publish(taskId, { kind: "error", message: task.error, retryable: false });
       this.hub.publish(taskId, { kind: "usage", cost: task.cost });
-      this.hub.publish(taskId, { kind: "done", state: task.state });
+      if (
+        contracts.isTerminalTaskState(task.state) ||
+        task.state === "NEEDS_USER" ||
+        task.state === "INTERRUPTED"
+      ) {
+        this.hub.publish(taskId, { kind: "done", state: task.state });
+      }
     }
     return this.hub.subscribe(taskId, signal);
   }
 
-  // ---------------------------------------------------------------- run loop
+  // ---------------------------------------------------------------- ask
 
   private async runAsk(taskId: string): Promise<void> {
     let task = this.get(taskId);
-    if (task.state !== "UNDERSTAND") return; // cancelled while queued
-    const controller = new AbortController();
-    this.controllers.set(taskId, controller);
+    if (task.state !== "UNDERSTAND") return;
+    const live = this.start(taskId);
     try {
       task = this.apply(task, { type: "context_sufficient" });
       const project = this.o.context.project(task.projectId);
@@ -228,77 +301,443 @@ export class TaskService {
         blueprint: this.o.context.blueprint(task.projectId),
       });
       const history = this.o.messages.list(task.sessionId).filter((m) => m.role !== "system");
-      const historyLimit = this.o.historyLimit ?? 20;
       const messages: ChatMessage[] = [
         { role: "system", content: system },
         ...history
-          .slice(-historyLimit)
+          .slice(-(this.o.historyLimit ?? 20))
           .map((m): ChatMessage =>
             m.role === "user"
               ? { role: "user", content: m.content }
               : { role: "assistant", content: m.content },
           ),
       ];
-
-      let text = "";
-      let failure: { message: string; retryable: boolean } | undefined;
-      const ref = task.model;
-      if (!ref) throw new AppError("internal", "task.no_model", "Task has no routed model.");
-      for await (const chunk of this.o.providers.chat(
-        ref,
-        { messages },
-        { signal: controller.signal, taskId },
-      )) {
-        switch (chunk.type) {
-          case "text":
-            text += chunk.text;
-            this.hub.publish(taskId, { kind: "text", delta: chunk.text });
-            break;
-          case "reasoning":
-            this.hub.publish(taskId, { kind: "reasoning", delta: chunk.text });
-            break;
-          case "tool-call":
-            break; // ask tasks declare no tools; ignore defensively
-          case "finish":
-            break;
-          case "error":
-            failure = { message: chunk.message, retryable: chunk.retryable };
-            break;
-        }
-        if (failure) break;
-      }
-      const cost = this.o.usage.summary({ taskId });
-      const taskCost: contracts.TaskCost = {
-        calls: cost.calls,
-        inputTokens: cost.inputTokens,
-        outputTokens: cost.outputTokens,
-        estimatedCostUsd: cost.estimatedCostUsd,
-      };
-      this.hub.publish(taskId, { kind: "usage", cost: taskCost });
-      task = { ...this.get(taskId), cost: taskCost };
-
-      if (controller.signal.aborted) {
-        this.finish(task, { type: "cancel" }, text, undefined);
-      } else if (failure) {
-        this.hub.publish(taskId, { kind: "error", message: failure.message, retryable: failure.retryable });
-        this.finish(task, { type: "failed" }, text, failure.message);
-      } else {
-        this.finish(task, { type: "answered" }, text, undefined);
-      }
+      const out = await this.modelCall(task, live, messages, undefined);
+      this.settle(taskId, live, out.text, out.failure, "answered");
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.hub.publish(taskId, { kind: "error", message, retryable: false });
-      this.finish(this.get(taskId), { type: controller.signal.aborted ? "cancel" : "failed" }, "", message);
+      this.crash(taskId, live, error);
     } finally {
-      this.controllers.delete(taskId);
+      this.live.delete(taskId);
     }
+  }
+
+  // ---------------------------------------------------------------- build
+
+  private async runBuild(taskId: string): Promise<void> {
+    let task = this.get(taskId);
+    if (task.state !== "UNDERSTAND") return;
+    const live = this.start(taskId);
+    try {
+      const profile = profileFor(task.complexity);
+      const ctx = this.promptContext(task);
+      task = this.apply(task, { type: "context_sufficient" }); // → PLAN
+
+      if (profile.skipPlan) {
+        this.hub.publish(taskId, {
+          kind: "note",
+          text: "Trivial change: building directly without a separate plan.",
+        });
+        task = this.apply(task, { type: "plan_skipped" });
+      } else {
+        for (;;) {
+          const plan = await this.planStep(task, live, ctx);
+          if (!plan) return; // failed/cancelled handled inside
+          task = { ...this.get(taskId), plan };
+          this.o.tasks.update(task);
+          this.hub.publish(taskId, { kind: "plan", plan });
+          const threshold = this.o.context.approvalThreshold(task.projectId);
+          if (autoApproves(threshold, task.complexity)) {
+            this.hub.publish(taskId, {
+              kind: "note",
+              text: `Plan auto-approved (project policy: ${threshold}).`,
+            });
+            task = this.apply(task, { type: "plan_auto_approved" });
+            break;
+          }
+          task = this.apply(task, { type: "plan_ready" }); // → AWAIT_APPROVAL
+          const decision = await this.awaitApproval(live);
+          if (decision.type === "approved") {
+            task = this.apply(task, { type: "approved" });
+            break;
+          }
+          if (decision.type === "rejected") {
+            this.finish(
+              this.get(taskId),
+              { type: live.controller.signal.aborted ? "cancel" : "rejected" },
+              "",
+              undefined,
+            );
+            return;
+          }
+          live.feedback = decision.feedback;
+          task = this.apply(task, { type: "revise" }); // → PLAN, loop
+        }
+      }
+
+      // EXECUTE
+      const summary = await this.builderLoop(task, live, ctx, profile.maxToolSteps);
+      if (summary === undefined) return;
+      task = this.apply(this.get(taskId), { type: "edits_applied" }); // → VALIDATE
+      await this.validateReviewComplete(task, live, ctx, profile.review, summary);
+    } catch (error) {
+      this.crash(taskId, live, error);
+    } finally {
+      this.live.delete(taskId);
+    }
+  }
+
+  private async runFromValidate(taskId: string, event: TaskEvent): Promise<void> {
+    const live = this.start(taskId);
+    try {
+      const task = this.apply(this.get(taskId), event); // INTERRUPTED → VALIDATE
+      this.hub.publish(taskId, {
+        kind: "note",
+        text: "Resumed after interruption: no edits are re-executed; validating what is on disk.",
+      });
+      await this.validateReviewComplete(
+        task,
+        live,
+        this.promptContext(task),
+        "none",
+        "Resumed after interruption.",
+      );
+    } catch (error) {
+      this.crash(taskId, live, error);
+    } finally {
+      this.live.delete(taskId);
+    }
+  }
+
+  private async validateReviewComplete(
+    task: Task,
+    live: Live,
+    ctx: ProjectPromptContext,
+    review: "none" | "full",
+    summary: string,
+  ): Promise<void> {
+    // VALIDATE: validators arrive in M10; today the check set is empty and passes explicitly.
+    this.hub.publish(task.id, { kind: "note", text: "No validators configured yet; skipping checks." });
+    task = this.apply(task, { type: "checks_passed" }); // → REVIEW
+
+    if (review === "full" && live.reviewRounds < MAX_REVIEW_ROUNDS) {
+      const verdict = await this.reviewStep(task, live, ctx);
+      if (verdict === undefined) return;
+      if (verdict.verdict === "changes" && live.reviewRounds < MAX_REVIEW_ROUNDS) {
+        live.reviewRounds += 1;
+        this.hub.publish(task.id, {
+          kind: "note",
+          text: `Reviewer requested changes: ${verdict.notes.join("; ") || "(no notes)"}`,
+        });
+        task = this.apply(task, { type: "review_requests_changes" }); // → EXECUTE
+        const again = await this.builderLoop(
+          task,
+          live,
+          ctx,
+          profileFor(task.complexity).maxToolSteps,
+          verdict.notes,
+        );
+        if (again === undefined) return;
+        task = this.apply(this.get(task.id), { type: "edits_applied" });
+        this.hub.publish(task.id, { kind: "note", text: "No validators configured yet; skipping checks." });
+        task = this.apply(task, { type: "checks_passed" });
+        summary = again;
+      }
+    }
+    task = this.apply(task, { type: "review_passed" }); // → CHECKPOINT
+    this.hub.publish(task.id, {
+      kind: "note",
+      text: "Git checkpoints arrive in a later milestone; changes are recorded in the Changes pane.",
+    });
+    // CHECKPOINT → COMPLETE happens in finish() via checkpoint_created, together with the summary message.
+    this.settle(
+      live.controller.signal.aborted ? task.id : task.id,
+      live,
+      summary,
+      undefined,
+      "answered",
+      true,
+    );
+  }
+
+  private async planStep(
+    task: Task,
+    live: Live,
+    ctx: ProjectPromptContext,
+  ): Promise<contracts.Plan | undefined> {
+    const messages: ChatMessage[] = [
+      { role: "system", content: buildPlannerSystemPrompt(ctx) },
+      { role: "user", content: plannerUserMessage(task.request, live.feedback) },
+    ];
+    const out = await this.modelCall(task, live, messages, undefined, { silentText: true });
+    if (out.failure || live.controller.signal.aborted) {
+      this.settle(task.id, live, "", out.failure ?? { message: "Cancelled.", retryable: false }, "answered");
+      return undefined;
+    }
+    try {
+      const plan = parsePlan(out.text);
+      if (live.feedback !== undefined) plan.revisionOf = (task.plan?.revisionOf ?? 0) + 1;
+      return plan;
+    } catch (error) {
+      this.settle(
+        task.id,
+        live,
+        "",
+        {
+          message: `The planner did not return a valid plan: ${error instanceof Error ? error.message : String(error)}`,
+          retryable: true,
+        },
+        "answered",
+      );
+      return undefined;
+    }
+  }
+
+  private awaitApproval(
+    live: Live,
+  ): Promise<{ type: "approved" } | { type: "revise"; feedback: string } | { type: "rejected" }> {
+    return new Promise((resolve) => {
+      live.approval = { resolve };
+      if (live.controller.signal.aborted) resolve({ type: "rejected" });
+    });
+  }
+
+  private decide(
+    taskId: string,
+    decision: { type: "approved" } | { type: "revise"; feedback: string } | { type: "rejected" },
+  ): void {
+    const task = this.get(taskId);
+    if (task.state !== "AWAIT_APPROVAL")
+      throw new AppError(
+        "precondition",
+        "task.not_awaiting_approval",
+        "This task is not waiting for approval.",
+      );
+    const live = this.live.get(taskId);
+    if (!live?.approval)
+      throw new AppError("precondition", "task.not_live", "This task is no longer running; resubmit it.");
+    live.approval.resolve(decision);
+    live.approval = undefined;
+  }
+
+  /** Tool loop: model ↔ tools until the model stops calling tools or the step budget is hit. */
+  private async builderLoop(
+    task: Task,
+    live: Live,
+    ctx: ProjectPromptContext,
+    maxToolSteps: number,
+    reviewNotes?: string[],
+  ): Promise<string | undefined> {
+    const plan = this.get(task.id).plan;
+    const tools = this.o.tools.specs();
+    const messages: ChatMessage[] = [
+      { role: "system", content: buildBuilderSystemPrompt(ctx, plan) },
+      { role: "user", content: task.request },
+    ];
+    if (reviewNotes && reviewNotes.length > 0)
+      messages.push({
+        role: "user",
+        content: `The reviewer requested changes:\n- ${reviewNotes.join("\n- ")}`,
+      });
+    const project = this.o.context.project(task.projectId);
+
+    for (;;) {
+      const out = await this.modelCall(task, live, messages, tools);
+      if (out.failure) {
+        this.settle(task.id, live, out.text, out.failure, "answered");
+        return undefined;
+      }
+      if (live.controller.signal.aborted) {
+        this.settle(task.id, live, out.text, undefined, "answered");
+        return undefined;
+      }
+      if (out.toolCalls.length === 0) return out.text || "Done.";
+
+      messages.push({ role: "assistant", content: out.text, toolCalls: out.toolCalls });
+      const results: ToolCallResult[] = [];
+      for (const call of out.toolCalls) {
+        if (live.toolSteps >= maxToolSteps) {
+          this.settle(
+            task.id,
+            live,
+            out.text,
+            {
+              message: `Step budget of ${String(maxToolSteps)} tool calls reached. Resume with a narrower request or raise the budget.`,
+              retryable: true,
+            },
+            "answered",
+          );
+          return undefined;
+        }
+        live.toolSteps += 1;
+        const toolId = call.name;
+        const description = describeCall(toolId, call.input);
+        this.hub.publish(task.id, { kind: "tool-call", callId: call.id, toolId, description });
+        const paths = ChangeTracker.pathsOf(toolId, call.input);
+        if (paths.length > 0) this.o.changes.before(task.id, project.path, paths);
+        const result = await this.o.tools.execute({
+          toolId,
+          input: call.input,
+          projectId: task.projectId,
+          projectRoot: project.path,
+          taskId: task.id,
+          signal: live.controller.signal,
+          ledger: live.ledger,
+        });
+        if (paths.length > 0) this.o.changes.after(task.id, project.path, paths);
+        this.hub.publish(task.id, {
+          kind: "tool-result",
+          callId: call.id,
+          toolId,
+          ok: result.ok,
+          summary: result.summaryForModel.slice(0, 400),
+        });
+        results.push({ id: call.id, name: toolId, output: result.summaryForModel, isError: !result.ok });
+      }
+      messages.push({ role: "tool", results });
+      if (live.modelCalls >= profileFor(task.complexity).maxModelCalls) {
+        this.settle(
+          task.id,
+          live,
+          "",
+          { message: "Model call budget reached for this task.", retryable: true },
+          "answered",
+        );
+        return undefined;
+      }
+    }
+  }
+
+  private async reviewStep(
+    task: Task,
+    live: Live,
+    ctx: ProjectPromptContext,
+  ): Promise<{ verdict: "pass" | "changes"; notes: string[] } | undefined> {
+    const messages: ChatMessage[] = [
+      { role: "system", content: buildReviewerSystemPrompt(ctx) },
+      { role: "user", content: reviewerUserMessage(task.request, task.plan, this.o.changes.list(task.id)) },
+    ];
+    const out = await this.modelCall(task, live, messages, undefined, { silentText: true });
+    if (out.failure || live.controller.signal.aborted) {
+      this.settle(task.id, live, "", out.failure ?? { message: "Cancelled.", retryable: false }, "answered");
+      return undefined;
+    }
+    try {
+      return parseReview(out.text);
+    } catch {
+      this.hub.publish(task.id, { kind: "note", text: "Reviewer returned no verdict; treating as pass." });
+      return { verdict: "pass", notes: [] };
+    }
+  }
+
+  // ---------------------------------------------------------------- shared
+
+  private async modelCall(
+    task: Task,
+    live: Live,
+    messages: ChatMessage[],
+    tools: ReturnType<ToolRuntime["specs"]> | undefined,
+    options: { silentText?: boolean } = {},
+  ): Promise<{
+    text: string;
+    toolCalls: ToolCallRequest[];
+    failure: { message: string; retryable: boolean } | undefined;
+  }> {
+    const ref = task.model;
+    if (!ref) throw new AppError("internal", "task.no_model", "Task has no routed model.");
+    live.modelCalls += 1;
+    let text = "";
+    const toolCalls: ToolCallRequest[] = [];
+    let failure: { message: string; retryable: boolean } | undefined;
+    const chunks: AsyncIterable<ChatChunk> = this.o.providers.chat(
+      ref,
+      { messages, tools },
+      { signal: live.controller.signal, taskId: task.id },
+    );
+    for await (const chunk of chunks) {
+      switch (chunk.type) {
+        case "text":
+          text += chunk.text;
+          if (!options.silentText) this.hub.publish(task.id, { kind: "text", delta: chunk.text });
+          break;
+        case "reasoning":
+          this.hub.publish(task.id, { kind: "reasoning", delta: chunk.text });
+          break;
+        case "tool-call":
+          toolCalls.push(chunk.call);
+          break;
+        case "finish":
+          break;
+        case "error":
+          failure = { message: chunk.message, retryable: chunk.retryable };
+          break;
+      }
+      if (failure) break;
+    }
+    this.publishUsage(task.id);
+    return { text, toolCalls, failure };
+  }
+
+  private publishUsage(taskId: string): contracts.TaskCost {
+    const s = this.o.usage.summary({ taskId });
+    const cost: contracts.TaskCost = {
+      calls: s.calls,
+      inputTokens: s.inputTokens,
+      outputTokens: s.outputTokens,
+      estimatedCostUsd: s.estimatedCostUsd,
+    };
+    this.hub.publish(taskId, { kind: "usage", cost });
+    const t = this.o.tasks.get(taskId);
+    if (t) this.o.tasks.update({ ...t, cost });
+    return cost;
+  }
+
+  /** Ends a run: persists the assistant message (partial when cancelled/failed) and applies the terminal event. */
+  private settle(
+    taskId: string,
+    live: Live,
+    text: string,
+    failure: { message: string; retryable: boolean } | undefined,
+    successEvent: "answered",
+    alreadyComplete = false,
+  ): void {
+    const task = this.get(taskId);
+    if (live.controller.signal.aborted) {
+      this.finish(task, { type: "cancel" }, text, undefined);
+    } else if (failure) {
+      this.hub.publish(taskId, { kind: "error", message: failure.message, retryable: failure.retryable });
+      this.finish(task, { type: "failed" }, text, failure.message);
+    } else if (alreadyComplete) {
+      this.finish(task, { type: successEvent }, text, undefined);
+    } else {
+      this.finish(task, { type: successEvent }, text, undefined);
+    }
+  }
+
+  private crash(taskId: string, live: Live, error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    this.o.logger?.error("task failed", { taskId, message });
+    this.hub.publish(taskId, { kind: "error", message, retryable: false });
+    const task = this.get(taskId);
+    if (!contracts.isTerminalTaskState(task.state))
+      this.finish(task, { type: live.controller.signal.aborted ? "cancel" : "failed" }, "", message);
+  }
+
+  private start(taskId: string): Live {
+    const live: Live = {
+      controller: new AbortController(),
+      ledger: new ReadLedger(),
+      modelCalls: 0,
+      toolSteps: 0,
+      reviewRounds: 0,
+    };
+    this.live.set(taskId, live);
+    return live;
   }
 
   private finish(task: Task, event: TaskEvent, text: string, error: string | undefined): void {
     if (contracts.isTerminalTaskState(task.state)) return;
     const at = this.now();
     if (text.length > 0) {
-      const partial = event.type !== "answered";
+      const partial = event.type !== "answered" && event.type !== "checkpoint_created";
       this.o.messages.insert({
         id: this.newId("msg"),
         sessionId: task.sessionId,
@@ -309,7 +748,15 @@ export class TaskService {
         createdAt: at,
       });
     }
-    const next = this.apply({ ...task, ...(error !== undefined ? { error } : {}) }, event, at);
+    const current = this.get(task.id);
+    // CHECKPOINT → COMPLETE uses checkpoint_created; everything else maps through the machine as given.
+    const effective: TaskEvent =
+      current.state === "CHECKPOINT" && event.type === "answered" ? { type: "checkpoint_created" } : event;
+    const next = this.apply(
+      { ...current, cost: task.cost, ...(error !== undefined ? { error } : {}) },
+      effective,
+      at,
+    );
     this.o.sessions.touch(task.sessionId, at);
     this.hub.publish(task.id, { kind: "done", state: next.state });
   }
@@ -342,6 +789,16 @@ export class TaskService {
       this.emitChange(next);
     }
     return next;
+  }
+
+  private promptContext(task: Task): ProjectPromptContext {
+    const project = this.o.context.project(task.projectId);
+    return {
+      project,
+      memory: this.o.context.memory(task.projectId),
+      blueprint: this.o.context.blueprint(task.projectId),
+      fileListing: listTopLevel(project.path),
+    };
   }
 
   private ensureSession(
@@ -377,7 +834,8 @@ export class TaskService {
   }
 }
 
-function intentFor(complexity: providers.Complexity): providers.RoutingIntent {
+function intentFor(mode: contracts.TaskMode, complexity: providers.Complexity): providers.RoutingIntent {
+  if (mode === "build") return complexity === "complex" ? "planning" : "coding";
   switch (complexity) {
     case "trivial":
       return "summarize";
@@ -385,6 +843,38 @@ function intentFor(complexity: providers.Complexity): providers.RoutingIntent {
       return "coding";
     case "complex":
       return "review";
+  }
+}
+
+function describeCall(toolId: string, input: unknown): string {
+  const i = input as Record<string, unknown> | null;
+  const p =
+    typeof i?.["path"] === "string"
+      ? i["path"]
+      : typeof i?.["from"] === "string"
+        ? i["from"]
+        : typeof i?.["query"] === "string"
+          ? `"${i["query"]}"`
+          : "";
+  return p ? `${toolId} ${p}` : toolId;
+}
+
+function listTopLevel(root: string): string {
+  try {
+    const skip = new Set(["node_modules", ".git", "dist", ".vite"]);
+    const out: string[] = [];
+    for (const name of readdirSync(root).sort()) {
+      if (skip.has(name)) continue;
+      const isDir = statSync(join(root, name)).isDirectory();
+      out.push(isDir ? `${name}/` : name);
+      if (isDir && out.length < 80) {
+        for (const child of readdirSync(join(root, name)).sort().slice(0, 40)) out.push(`${name}/${child}`);
+      }
+      if (out.length > 200) break;
+    }
+    return out.join("\n");
+  } catch {
+    return "(unavailable)";
   }
 }
 

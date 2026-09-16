@@ -27,6 +27,7 @@
     "@autoappz/ui": "workspace:*",
     "@vscode/ripgrep": "^1.18.0",
     "better-sqlite3": "^13.0.3",
+    "diff": "^9.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

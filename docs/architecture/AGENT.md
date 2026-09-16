@@ -13,6 +13,8 @@ Effects (`runModel`, `runTool`, `runValidators`, `createCheckpoint`, `askUser`, 
 
 Implemented in `packages/agent/src/state-machine.ts` (pure, fully tested) and driven by `packages/core` `TaskService`. `ask` tasks take the short path UNDERSTAND → EXECUTE → COMPLETE with the `answered` event; `failed` from any live state lands in NEEDS_USER.
 
+Build tasks (M6): `runBuild` in `packages/core` drives PLAN (planner prompt → JSON plan, `plan_skipped` for trivial, `plan_auto_approved` per policy), AWAIT_APPROVAL (`task.approve|revise|reject`), EXECUTE (builder tool loop: `streamText` with the tool runtime's JSON-Schema specs, tool calls executed through `ToolRuntime` so permissions/audit/read-ledger apply), VALIDATE (explicit pass until M10), REVIEW (reviewer prompt for complex tasks, one bounded round), CHECKPOINT (recorded; git lands in M9) → COMPLETE. Budgets: `profileFor(complexity)` sets `maxToolSteps`/`maxModelCalls`; exceeding either ends in NEEDS_USER with a resumable error.
+
 ## Role runs
 `runRole(role, task, ctx) → RoleResult` with its own `agentRunId`, model selection (router), context pack (Context Engine) and tool subset (permission-filtered). Prompts are versioned templates in `packages/agent/prompts` with snapshot tests.
 

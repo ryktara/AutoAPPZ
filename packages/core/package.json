@@ -13,7 +13,9 @@
     "@autoappz/ai-providers": "workspace:*",
     "@autoappz/contracts": "workspace:*",
     "@autoappz/diagnostics": "workspace:*",
-    "@autoappz/storage": "workspace:*"
+    "@autoappz/storage": "workspace:*",
+    "@autoappz/tools": "workspace:*",
+    "@autoappz/permissions": "workspace:*"
   },
   "devDependencies": {
     "@autoappz/testing": "workspace:*"

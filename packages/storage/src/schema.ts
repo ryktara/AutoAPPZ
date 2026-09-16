@@ -162,6 +162,22 @@ export const taskEvents = sqliteTable(
   (t) => [primaryKey({ columns: [t.taskId, t.seq] })],
 );
 
+export const taskChanges = sqliteTable(
+  "task_changes",
+  {
+    taskId: text("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    path: text("path").notNull(),
+    kind: text("kind").notNull(), // created | modified | deleted | renamed
+    before: text("before"),
+    after: text("after"),
+    truncated: integer("truncated").notNull().default(0),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.taskId, t.path] })],
+);
+
 export const agentRuns = sqliteTable(
   "agent_runs",
   {
@@ -291,6 +307,7 @@ export const schema = {
   messages,
   tasks,
   taskEvents,
+  taskChanges,
   agentRuns,
   toolCalls,
   checkpoints,

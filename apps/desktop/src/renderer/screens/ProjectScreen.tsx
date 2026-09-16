@@ -1,9 +1,12 @@
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { RequestPane } from "./project/RequestPane.tsx";
 import { TranscriptPanel } from "./project/TranscriptPanel.tsx";
 import { PermissionsPanel } from "./project/PermissionsPanel.tsx";
+import { PlanPanel } from "./project/PlanPanel.tsx";
+import { ExecutionPanel } from "./project/ExecutionPanel.tsx";
+import { ChangesPanel } from "./project/ChangesPanel.tsx";
 import { useTaskStream } from "../state/use-task-stream.ts";
-import { blueprint, memory, project } from "@autoappz/contracts";
+import { blueprint, memory, project, tasks } from "@autoappz/contracts";
 
 type MemoryCategory = memory.MemoryCategory;
 import {
@@ -47,6 +50,18 @@ export function ProjectScreen({ id }: { readonly id: string }) {
   const [tab, setTab] = useState<WorkTab>("transcript");
   const [activeTaskId, setActiveTaskId] = useState<string | undefined>();
   const live = useTaskStream(activeTaskId);
+  const recent = useQuery(
+    tasks.taskList,
+    useMemo(() => ({ projectId: id, limit: 1 }), [id]),
+  );
+  const latestTaskId = recent.data?.[0]?.id;
+  useEffect(() => {
+    if (activeTaskId === undefined && latestTaskId !== undefined) setActiveTaskId(latestTaskId);
+  }, [activeTaskId, latestTaskId]);
+  // While a build task is live, follow it into the Plan tab when it needs approval.
+  useEffect(() => {
+    if (live.state === "AWAIT_APPROVAL") setTab("plan");
+  }, [live.state]);
   const [dock, setDock] = useState<DockTab>("problems");
   const { navigate } = useRouter();
 
@@ -105,6 +120,12 @@ export function ProjectScreen({ id }: { readonly id: string }) {
         <div className="az-pane-body">
           {tab === "transcript" ? (
             <TranscriptPanel projectId={id} activeTaskId={activeTaskId} live={live} />
+          ) : tab === "plan" ? (
+            <PlanPanel taskId={activeTaskId} live={live} />
+          ) : tab === "execution" ? (
+            <ExecutionPanel taskId={activeTaskId} live={live} />
+          ) : tab === "changes" ? (
+            <ChangesPanel taskId={activeTaskId} />
           ) : tab === "blueprint" ? (
             <BlueprintPanel projectId={id} />
           ) : tab === "memory" ? (
@@ -146,10 +167,10 @@ export function ProjectScreen({ id }: { readonly id: string }) {
   );
 }
 
-const EMPTY_COPY: Record<Exclude<WorkTab, "transcript" | "blueprint" | "memory" | "project">, string> = {
-  plan: "Plans appear here once a request is submitted.",
-  execution: "Tool activity streams here while the agent works.",
-  changes: "File changes with undo will be listed here.",
+const EMPTY_COPY: Record<
+  Exclude<WorkTab, "transcript" | "plan" | "execution" | "changes" | "blueprint" | "memory" | "project">,
+  string
+> = {
   validation: "Typecheck, lint, test and build results will be shown here.",
 };
 

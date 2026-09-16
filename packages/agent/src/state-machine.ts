@@ -9,6 +9,7 @@ export type TaskEventType =
   | "explored"
   | "plan_ready"
   | "plan_skipped"
+  | "plan_auto_approved"
   | "approved"
   | "revise"
   | "rejected"
@@ -90,7 +91,7 @@ export function transition(state: TaskState, event: TaskEvent, ctx: TransitionCo
     case "PLAN":
       if (event.type === "plan_ready")
         return { state: "AWAIT_APPROVAL", effects: [{ type: "askUser", reason: "approve_plan" }] };
-      if (event.type === "plan_skipped")
+      if (event.type === "plan_skipped" || event.type === "plan_auto_approved")
         return { state: "EXECUTE", effects: [{ type: "runModel", role: "builder" }] };
       return stay(state);
     case "AWAIT_APPROVAL":

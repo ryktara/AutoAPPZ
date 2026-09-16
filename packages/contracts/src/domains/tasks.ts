@@ -40,6 +40,23 @@ export const TaskCostSchema = z.object({
 });
 export type TaskCost = z.infer<typeof TaskCostSchema>;
 
+/** Planner output: what will be done, in which files, and how success is judged. */
+export const PlanStepSchema = z.object({
+  id: z.string().min(1).max(32),
+  title: z.string().min(1).max(200),
+  detail: z.string().max(2000).default(""),
+  files: z.array(z.string().min(1).max(4096)).default([]),
+});
+export const PlanSchema = z.object({
+  summary: z.string().min(1).max(2000),
+  steps: z.array(PlanStepSchema).min(1).max(40),
+  acceptanceCriteria: z.array(z.string().min(1).max(500)).default([]),
+  risks: z.array(z.string().min(1).max(500)).default([]),
+  /** Set when the user asked for changes; the planner sees it on the next round. */
+  revisionOf: z.number().int().positive().optional(),
+});
+export type Plan = z.infer<typeof PlanSchema>;
+
 export const TaskSchema = z.object({
   id: TaskIdSchema,
   projectId: ProjectIdSchema,
@@ -49,6 +66,7 @@ export const TaskSchema = z.object({
   complexity: ComplexitySchema,
   state: TaskStateSchema,
   model: ModelRefSchema.optional(),
+  plan: PlanSchema.optional(),
   error: z.string().optional(),
   cost: TaskCostSchema,
   createdAt: z.number().int().nonnegative(),
@@ -121,6 +139,16 @@ export const TaskStreamChunkSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), delta: z.string() }),
   z.object({ kind: z.literal("reasoning"), delta: z.string() }),
   z.object({ kind: z.literal("usage"), cost: TaskCostSchema }),
+  z.object({ kind: z.literal("plan"), plan: PlanSchema }),
+  z.object({ kind: z.literal("tool-call"), callId: z.string(), toolId: z.string(), description: z.string() }),
+  z.object({
+    kind: z.literal("tool-result"),
+    callId: z.string(),
+    toolId: z.string(),
+    ok: z.boolean(),
+    summary: z.string(),
+  }),
+  z.object({ kind: z.literal("note"), text: z.string() }),
   z.object({ kind: z.literal("error"), message: z.string(), retryable: z.boolean() }),
   z.object({ kind: z.literal("done"), state: TaskStateSchema }),
 ]);
@@ -130,6 +158,52 @@ export const taskStream = defineStream({
   name: "task.stream",
   input: z.object({ taskId: TaskIdSchema }),
   chunk: TaskStreamChunkSchema,
+});
+
+export const taskApprove = defineCommand({
+  name: "task.approve",
+  input: z.object({ taskId: TaskIdSchema }),
+  output: z.void(),
+  invalidates: ["tasks"],
+});
+
+export const taskRevise = defineCommand({
+  name: "task.revise",
+  input: z.object({ taskId: TaskIdSchema, feedback: z.string().trim().min(1).max(4000) }),
+  output: z.void(),
+  invalidates: ["tasks"],
+});
+
+export const taskReject = defineCommand({
+  name: "task.reject",
+  input: z.object({ taskId: TaskIdSchema }),
+  output: z.void(),
+  invalidates: ["tasks"],
+});
+
+/** Continue an INTERRUPTED task: never re-executes edits, resumes into validation. */
+export const taskResume = defineCommand({
+  name: "task.resume",
+  input: z.object({ taskId: TaskIdSchema }),
+  output: z.void(),
+  invalidates: ["tasks"],
+});
+
+export const TaskChangeSchema = z.object({
+  path: z.string().min(1),
+  kind: z.enum(["created", "modified", "deleted", "renamed"]),
+  before: z.string().optional(),
+  after: z.string().optional(),
+  /** Set when a side exceeded the size cap and was omitted. */
+  truncated: z.boolean().default(false),
+});
+export type TaskChange = z.infer<typeof TaskChangeSchema>;
+
+export const taskChanges = defineQuery({
+  name: "task.changes",
+  input: z.object({ taskId: TaskIdSchema }),
+  output: z.array(TaskChangeSchema),
+  scope: "changes",
 });
 
 export const sessionList = defineQuery({

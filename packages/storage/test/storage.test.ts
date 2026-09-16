@@ -65,13 +65,13 @@ describe("migrations", () => {
       expect(new SettingsRepository(h2.db).getRaw("k")).toEqual({ a: 1 });
       h2.close();
 
-      const extra: Migration = { id: "0003_extra", up: ["CREATE TABLE extra (id TEXT PRIMARY KEY)"] };
+      const extra: Migration = { id: "0004_extra", up: ["CREATE TABLE extra (id TEXT PRIMARY KEY)"] };
       const h3 = openDatabase({ path: file, migrations: [...ALL_MIGRATIONS, extra] });
-      expect(h3.appliedMigrations).toEqual(["0003_extra"]);
+      expect(h3.appliedMigrations).toEqual(["0004_extra"]);
       h3.close();
       const backups = readdirSync(path.join(dir, "backups"));
       expect(backups).toHaveLength(1);
-      expect(backups[0]).toMatch(/pre-0003_extra\.db$/);
+      expect(backups[0]).toMatch(/pre-0004_extra\.db$/);
       await Promise.resolve();
     });
   });
@@ -80,7 +80,7 @@ describe("migrations", () => {
     await withTempDir(async (dir) => {
       const file = path.join(dir, "autoappz.db");
       openDatabase({ path: file }).close();
-      const broken: Migration = { id: "0003_broken", up: ["CREATE TABLE ok (id TEXT)", "THIS IS NOT SQL"] };
+      const broken: Migration = { id: "0004_broken", up: ["CREATE TABLE ok (id TEXT)", "THIS IS NOT SQL"] };
       expect(() => openDatabase({ path: file, migrations: [...ALL_MIGRATIONS, broken] })).toThrow(
         /could not be upgraded/,
       );

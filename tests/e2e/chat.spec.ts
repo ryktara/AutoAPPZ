@@ -76,6 +76,7 @@ async function createProject(name: string) {
 test("asking without a provider explains what to do", async () => {
   await createProject("Chat App");
   const form = page.getByRole("form", { name: "Request" });
+  await form.getByLabel("Mode").selectOption("ask");
   await form.getByLabel("Request").fill("What is this?");
   await form.getByRole("button", { name: "Ask" }).click();
   await expect(form.getByText("No model provider is ready")).toBeVisible();
@@ -87,6 +88,7 @@ test("streams an answer, records cost, persists the transcript across restart", 
   await enableFakeProvider();
   await createProject("Chat App");
   const form = page.getByRole("form", { name: "Request" });
+  await form.getByLabel("Mode").selectOption("ask");
   await form.getByLabel("Request").fill("What does this project do?");
   await form.getByRole("button", { name: "Ask" }).click();
 
@@ -108,6 +110,7 @@ test("cancel mid-stream keeps the partial answer", async () => {
   await enableFakeProvider();
   await createProject("Chat App");
   const form = page.getByRole("form", { name: "Request" });
+  await form.getByLabel("Mode").selectOption("ask");
   await form.getByLabel("Request").fill("Explain slowly");
   await form.getByRole("button", { name: "Ask" }).click();
   await expect(page.getByTestId("live-answer")).toContainText("word");

@@ -1,25 +1,8 @@
 import { useMemo } from "react";
 import { tasks } from "@autoappz/contracts";
-import { Banner, EmptyState, Tag } from "@autoappz/ui";
+import { Banner, EmptyState } from "@autoappz/ui";
 import { useQuery } from "../../state/hooks.ts";
 import type { TaskStreamView } from "../../state/use-task-stream.ts";
-
-const STATE_LABEL: Record<tasks.TaskState, string> = {
-  UNDERSTAND: "Understanding",
-  EXPLORE: "Exploring",
-  PLAN: "Planning",
-  AWAIT_APPROVAL: "Waiting for approval",
-  EXECUTE: "Answering",
-  VALIDATE: "Validating",
-  DIAGNOSE: "Diagnosing",
-  REPAIR: "Repairing",
-  REVIEW: "Reviewing",
-  CHECKPOINT: "Checkpointing",
-  COMPLETE: "Done",
-  CANCELLED: "Cancelled",
-  NEEDS_USER: "Needs your input",
-  INTERRUPTED: "Interrupted",
-};
 
 export function TranscriptPanel({
   projectId,
@@ -65,23 +48,7 @@ export function TranscriptPanel({
           <div className="az-msg-body">{live.text || <span className="az-muted">…</span>}</div>
         </article>
       ) : null}
-      {activeTaskId ? (
-        <div className="az-task-status" data-testid="task-status">
-          {live.state ? <Tag>{STATE_LABEL[live.state]}</Tag> : null}
-          {live.model ? (
-            <span className="az-muted" title={live.model.reason}>
-              {live.model.modelId} · {live.model.providerId}
-            </span>
-          ) : null}
-          {live.cost ? (
-            <span className="az-muted">
-              {live.cost.inputTokens + live.cost.outputTokens} tokens ·{" "}
-              {live.cost.estimatedCostUsd === 0 ? "$0.00" : `$${live.cost.estimatedCostUsd.toFixed(4)}`}
-            </span>
-          ) : null}
-          {live.error ? <Banner tone="danger">{live.error.message}</Banner> : null}
-        </div>
-      ) : null}
+      {activeTaskId && live.error ? <Banner tone="danger">{live.error.message}</Banner> : null}
     </div>
   );
 }
