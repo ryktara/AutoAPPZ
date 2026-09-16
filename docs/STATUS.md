@@ -23,10 +23,15 @@ Last updated: 2026-09-16 after M14. Every milestone in `IMPLEMENTATION-PLAN.md` 
 | Diagnostics bundle (redacted) | Settings → About → Export diagnostics bundle |
 | Benchmarks with targets and baseline | `pnpm bench` (indexing, retrieval, search, memory), `pnpm bench:startup`; nightly `bench.yml`; numbers in `docs/performance/BENCHMARKS.md` |
 
-## Verified in CI only
+## Verified on hosted CI (not reproducible on the development machine)
 
-- `fullstack-postgres` end to end against a PostgreSQL service (`template-postgres` job) and the real-Postgres gateway tests (`AUTOAPPZ_TEST_DATABASE_URL`) — the local machine had no running Docker daemon during M11.
-- E2E on macOS and Linux (`e2e` matrix); locally verified on Windows.
+All 15 jobs of `ci.yml` passed on GitHub-hosted runners for `main` (run #12, commit `3f1d0ad`, 2026-09-16):
+
+- `fullstack-postgres` end to end against a PostgreSQL service (`template-postgres` job) and the real-Postgres gateway tests (`AUTOAPPZ_TEST_DATABASE_URL`) — the development machine had no running Docker daemon.
+- Docker images for all four templates (`docker-build` matrix).
+- Unit suites on macOS (arm64) and Windows; Electron end-to-end on ubuntu, windows and macos (`e2e` matrix), including OS secure storage through a real GNOME keyring on Linux (`AUTOAPPZ_PASSWORD_STORE=gnome-libsecret`).
+
+The first hosted runs surfaced defects that local Windows runs could not: path canonicalisation (macOS `/private/var`, Windows 8.3 short names) in git, validation and project roots; dev servers reachable on `::1` only; libuv's watcher assertion on short-name paths; pnpm 11 build allowances for macOS-only packages; Chromium's keyring selection on headless Linux. Each has a regression test or a CI step pinning it.
 
 ## UNVERIFIED / deferred (explicit)
 
