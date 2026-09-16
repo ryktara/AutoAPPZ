@@ -54,7 +54,8 @@ describe("helpers", () => {
   });
 });
 
-describe("GitService", () => {
+// Real git processes under a fully parallel test run can take a few seconds each.
+describe("GitService", { timeout: 30_000 }, () => {
   it("init creates a repository with an initial commit; status reports the tree", async () => {
     await withTempDir(async (dir) => {
       expect(await service.isRepository(dir)).toBe(false);

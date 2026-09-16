@@ -25,6 +25,7 @@ import { createProviderRegistry, registerProviderHandlers } from "./providers-wi
 import { createTaskService, registerTaskHandlers } from "./tasks-wiring.ts";
 import { createGitWiring, registerGitHandlers } from "./git-wiring.ts";
 import { createContextWiring, registerContextHandlers } from "./context-wiring.ts";
+import { createValidationWiring, registerValidationHandlers } from "./validation-wiring.ts";
 import type { TaskService } from "@autoappz/core";
 import type { PermissionEngine } from "@autoappz/permissions";
 import type { ToolRuntime } from "@autoappz/tools";
@@ -50,6 +51,7 @@ import {
   UsageRecordsRepository,
   openDatabase,
   CheckpointsRepository,
+  TaskValidationsRepository,
   type DatabaseHandle,
 } from "@autoappz/storage";
 
@@ -274,10 +276,21 @@ export function createServices(options: ServicesOptions): MainServices {
     logger: log.child("git"),
     now: options.now,
   });
+  const validationsRepo = new TaskValidationsRepository(db.db);
+  const validationWiring = createValidationWiring({
+    bus,
+    projects,
+    git: gitWiring.git,
+    context: contextWiring.engine,
+    logger: log.child("validation"),
+    now: options.now,
+  });
   const taskWiring = createTaskService({
     db: db.db,
     vcs: gitWiring.vcs,
     retrieval: contextWiring.retrieval,
+    validation: validationWiring.source,
+    validations: validationsRepo,
     usageRepo,
     providers,
     tools,
@@ -297,6 +310,11 @@ export function createServices(options: ServicesOptions): MainServices {
     tasks: taskWiring.service,
   });
   registerContextHandlers(bus, contextWiring, projects);
+  registerValidationHandlers(bus, validationWiring, {
+    tasks: taskWiring.service,
+    validations: validationsRepo,
+    projects,
+  });
   // Managed projects start with an initial commit so the first task has a base to diff against.
   projects.onChange((change) => {
     if (change.kind !== "created") return;

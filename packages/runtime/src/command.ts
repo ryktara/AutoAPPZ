@@ -75,10 +75,14 @@ export function resolveCmdShim(shimPath: string, env: NodeJS.ProcessEnv): Resolv
     return undefined;
   }
   const dir = path.dirname(shimPath);
-  const m = /"%(?:~)?dp0%?\\?([^"]+\.(?:c?m?js))"/i.exec(text);
-  if (!m?.[1]) return undefined;
-  const entry = path.join(dir, m[1].replace(/^\\/, ""));
-  if (!isFile(entry)) return undefined;
+  // The script is the first %dp0-relative quoted path that is not node.exe itself; pnpm shims point at
+  // extension-less entries (`typescript/bin/tsc`) as well as `.js`/`.mjs` files.
+  const entry = [...text.matchAll(/"%(?:~)?dp0%?\\?([^"]+)"/gi)]
+    .map((m) => m[1] ?? "")
+    .filter((p) => p.length > 0 && !/node\.exe$/i.test(p))
+    .map((p) => path.join(dir, p.replace(/^\\/, "")))
+    .find((p) => isFile(p));
+  if (!entry) return undefined;
   const localNode = path.join(dir, "node.exe");
   const node = isFile(localNode) ? localNode : findNode(env);
   if (!node) return undefined;

@@ -49,6 +49,8 @@ export type {
   ProjectContextSource,
   RetrievalSource,
   TaskChange,
+  ValidationSource,
+  ValidationStore,
   TaskServiceOptions,
   TaskVcs,
 } from "./task-service.ts";

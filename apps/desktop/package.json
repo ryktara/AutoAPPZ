@@ -28,6 +28,7 @@
     "@autoappz/storage": "workspace:*",
     "@autoappz/tools": "workspace:*",
     "@autoappz/ui": "workspace:*",
+    "@autoappz/validation": "workspace:*",
     "@vscode/ripgrep": "^1.18.0",
     "better-sqlite3": "^13.0.3",
     "diff": "^9.0.0",

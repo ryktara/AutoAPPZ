@@ -32,6 +32,10 @@ export function isTerminalTaskState(state: TaskState): boolean {
 export const TaskModeSchema = z.enum(["ask", "build"]);
 export type TaskMode = z.infer<typeof TaskModeSchema>;
 
+/** "change" plans and edits; "fix" skips planning and repairs whatever the validators report. */
+export const TaskIntentSchema = z.enum(["change", "fix"]);
+export type TaskIntent = z.infer<typeof TaskIntentSchema>;
+
 export const TaskCostSchema = z.object({
   calls: z.number().int().nonnegative(),
   inputTokens: z.number().int().nonnegative(),
@@ -62,6 +66,7 @@ export const TaskSchema = z.object({
   projectId: ProjectIdSchema,
   sessionId: SessionIdSchema,
   mode: TaskModeSchema,
+  intent: TaskIntentSchema.default("change"),
   request: z.string().min(1),
   complexity: ComplexitySchema,
   state: TaskStateSchema,
@@ -106,6 +111,7 @@ export const taskSubmit = defineCommand({
     sessionId: SessionIdSchema.optional(),
     request: z.string().trim().min(1).max(20_000),
     mode: TaskModeSchema.default("ask"),
+    intent: TaskIntentSchema.default("change"),
   }),
   output: z.object({ taskId: TaskIdSchema, sessionId: SessionIdSchema }),
   invalidates: ["tasks", "sessions", "messages"],
@@ -149,6 +155,21 @@ export const TaskStreamChunkSchema = z.discriminatedUnion("kind", [
     summary: z.string(),
   }),
   z.object({ kind: z.literal("note"), text: z.string() }),
+  /** A validation attempt finished (see validation.ValidationReportSchema; kept loose here to avoid a cycle). */
+  z.object({
+    kind: z.literal("validation"),
+    attempt: z.number().int().nonnegative(),
+    ok: z.boolean(),
+    summary: z.string(),
+    results: z.array(
+      z.object({
+        validator: z.string(),
+        status: z.enum(["passed", "failed", "skipped", "error"]),
+        count: z.number().int().nonnegative(),
+        note: z.string().optional(),
+      }),
+    ),
+  }),
   /** Retrieved excerpts handed to the model for this step, each with its reasons. */
   z.object({
     kind: z.literal("context"),

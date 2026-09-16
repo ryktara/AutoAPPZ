@@ -20,6 +20,8 @@ export interface TaskStreamView {
   readonly notes: readonly string[];
   /** Latest retrieved-context pack (why each excerpt was included). */
   readonly context: Extract<tasks.TaskStreamChunk, { kind: "context" }> | undefined;
+  /** Validation attempts in order. */
+  readonly validations: readonly Extract<tasks.TaskStreamChunk, { kind: "validation" }>[];
   readonly cost: tasks.TaskCost | undefined;
   readonly error: { message: string; retryable: boolean } | undefined;
   readonly done: boolean;
@@ -34,6 +36,7 @@ const EMPTY: TaskStreamView = {
   tools: [],
   notes: [],
   context: undefined,
+  validations: [],
   cost: undefined,
   error: undefined,
   done: false,
@@ -55,6 +58,7 @@ export function useTaskStream(taskId: string | undefined): TaskStreamView {
           setView((v) => fold(v, chunk));
           if (chunk.kind === "state" || chunk.kind === "done") cache.invalidate(["tasks"]);
           if (chunk.kind === "tool-result") cache.invalidate(["changes", "audit", "permissions"]);
+          if (chunk.kind === "validation") cache.invalidate(["validation"]);
           if (chunk.kind === "done") cache.invalidate(["messages", "sessions", "usage", "changes", "audit"]);
         },
         onEnd: () => {
@@ -117,6 +121,8 @@ function fold(v: TaskStreamView, chunk: tasks.TaskStreamChunk): TaskStreamView {
       return { ...v, notes: [...v.notes, chunk.text] };
     case "context":
       return { ...v, context: chunk };
+    case "validation":
+      return { ...v, validations: [...v.validations, chunk] };
     case "usage":
       return { ...v, cost: chunk.cost };
     case "error":

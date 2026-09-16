@@ -13,6 +13,7 @@ export { ProjectMemoryRepository } from "./repositories/project-memory.ts";
 export { UsageRecordsRepository } from "./repositories/usage-records.ts";
 export { PermissionsRepository, ToolCallsRepository } from "./repositories/permissions.ts";
 export { CheckpointsRepository } from "./repositories/checkpoints.ts";
+export { TaskValidationsRepository } from "./repositories/task-validations.ts";
 export {
   MessagesRepository,
   SessionsRepository,

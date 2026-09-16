@@ -124,6 +124,14 @@ test("plan → approve → consent → changes: the vertical slice core", async 
   await expect(excerpts).toContainText("src/App.tsx");
   await expect(excerpts).toContainText("named in the plan");
 
+  // Validators ran after the edit: syntax passes on the changed file; tools needing node_modules explain why they were skipped.
+  await page.getByRole("tab", { name: "Validation" }).click();
+  const validationTab = page.getByTestId("validation");
+  await expect(validationTab).toContainText("Attempt 1");
+  await expect(validationTab).toContainText("syntax");
+  await expect(validationTab).toContainText("passed");
+  await expect(validationTab.getByRole("button", { name: "Diagnose & fix" })).toBeVisible();
+
   await page.getByRole("tab", { name: "Changes" }).click();
   await expect(page.getByRole("list", { name: "Changed files" })).toContainText("src/App.tsx");
   const diff = page.getByLabel("Diff of src/App.tsx");

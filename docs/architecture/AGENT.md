@@ -29,3 +29,12 @@ AI SDK `streamText` with tools; loop guard: `maxSteps` per run, token/cost budge
 
 ## Memory
 `ProjectMemoryFact { id, category, statement, provenance: {taskId}, confidence, createdAt, supersededBy? }` written by Reviewer/Architect; retrieval by category + lexical match; editable in UI.
+
+## Implementation notes — validation & repair (M10)
+- `packages/validation`: validators behind `Validator { id, tier, applies(ctx), run(ctx) }` — `syntax` (tier 0: project-local `typescript` transpile diagnostics or a bracket heuristic, JSON parse), `typecheck` (tier 1: `tsc -p tsconfig.json --noEmit --pretty false`), `lint` (tier 1: `eslint --format json` over changed files), `tests` (tier 2: `vitest related --run` over changed files, whole suite when nothing changed), `build` (tier 3: the package manager's `build` script). CLIs resolve from `node_modules/.bin` walking up from the project (Windows shims → `node <entry>`), spawn as argument arrays with the runtime env allowlist, bounded output, per-tier timeouts and process-tree kill on cancel.
+- `runValidation` runs validators in cost order and stops after the first failing tier; inapplicable validators are reported `skipped` with the reason. A tool that cannot run (`error`, e.g. timeout) is surfaced but does not count as failing, so the repair loop is never driven by tooling problems.
+- Repair selection: diagnostics deduplicated by file/line/code/message, errors first, changed files first, capped at 12; rendered as lines for the builder together with "N more not shown".
+- `TaskService.validateLoop`: VALIDATE → `checks_failed` → DIAGNOSE → `diagnosis_ready` → REPAIR (builder loop with the repair notes, retrieval phase `repair`) → `fix_applied` → VALIDATE, at most `MAX_REPAIR_ATTEMPTS = 3` rounds, then NEEDS_USER with a retryable error naming the summary. Every attempt is persisted (`task_validations`) and streamed as a `validation` chunk. Tier by complexity: trivial → 1, standard → 2, complex → 3.
+- **Diagnose & fix**: `task.submit` with `intent: "fix"` takes the checkpoint, skips planning and editing, validates the uncommitted tree (dirty files from git status) and repairs from there; the summary reports "No problems found" or "Fixed the failing checks".
+- Validation diagnostics are also written to the context index (`diagnostics` table), which the repair phase weights highest.
+- Deferred: runtime smoke and browser checks as validators (the preview proxy already reports runtime errors to the Problems dock), per-project validator configuration, parallel validators within a tier.

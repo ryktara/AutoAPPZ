@@ -7,6 +7,8 @@ import {
   type ProjectContextSource,
   type TaskVcs,
   type RetrievalSource,
+  type ValidationSource,
+  type ValidationStore,
 } from "@autoappz/core";
 import type { Logger } from "@autoappz/diagnostics";
 import type {
@@ -39,6 +41,8 @@ export function createTaskService(input: {
   logger: Logger;
   vcs?: TaskVcs | undefined;
   retrieval?: RetrievalSource | undefined;
+  validation?: ValidationSource | undefined;
+  validations?: ValidationStore | undefined;
   now?: (() => number) | undefined;
 }): { service: TaskService; sessions: SessionsRepository; messages: MessagesRepository } {
   const sessions = new SessionsRepository(input.db);
@@ -64,6 +68,8 @@ export function createTaskService(input: {
     context,
     vcs: input.vcs,
     retrieval: input.retrieval,
+    validation: input.validation,
+    validations: input.validations,
     logger: input.logger,
     now: input.now,
   });

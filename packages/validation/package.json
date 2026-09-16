@@ -2,13 +2,18 @@
   "name": "@autoappz/validation",
   "version": "0.0.0",
   "private": true,
-  "description": "Validators (typecheck, lint, build, test) with structured diagnostics (M8).",
+  "description": "Validators (syntax, typecheck, lint, affected tests, build) with structured diagnostics and repair selection (M10).",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@autoappz/contracts": "workspace:*"
+    "@autoappz/contracts": "workspace:*",
+    "@autoappz/diagnostics": "workspace:*",
+    "@autoappz/runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "@autoappz/testing": "workspace:*"
   }
 }

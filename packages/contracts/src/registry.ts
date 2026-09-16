@@ -1,6 +1,7 @@
 import type { AnyDefinition } from "./definitions.ts";
 import * as blueprint from "./domains/blueprint.ts";
 import * as context from "./domains/context.ts";
+import * as validation from "./domains/validation.ts";
 import * as git from "./domains/git.ts";
 import * as memory from "./domains/memory.ts";
 import * as permissions from "./domains/permissions.ts";
@@ -102,6 +103,10 @@ export const ALL_CONTRACTS: readonly AnyDefinition[] = [
   context.contextReindex,
   context.contextSearch,
   context.contextStatusChanged,
+  validation.taskValidation,
+  validation.validationRun,
+  validation.validationLatest,
+  validation.validationChanged,
 ];
 
 export function contractNames(kind?: AnyDefinition["kind"]): readonly string[] {

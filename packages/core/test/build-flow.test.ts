@@ -17,7 +17,14 @@ import {
 } from "@autoappz/storage";
 import { collect, startFakeModelServer, withTempDir, type FakeModelServer } from "@autoappz/testing";
 import { FS_TOOLS, ToolRuntime, createSearchTool } from "@autoappz/tools";
-import { ChangeTracker, TaskEventHub, TaskService, type TaskVcs } from "../src/index.ts";
+import {
+  ChangeTracker,
+  TaskEventHub,
+  TaskService,
+  type TaskVcs,
+  type ValidationSource,
+} from "../src/index.ts";
+import type { validation as validationContracts } from "@autoappz/contracts";
 
 const PLAN = JSON.stringify({
   summary: "Change the greeting in App.tsx",
@@ -63,6 +70,23 @@ beforeAll(async () => {
         match: "loop forever",
         turns: [{ toolCalls: [{ name: "fs.read", input: { path: "src/App.tsx" } }] }],
       },
+      // Repair round: the builder is told the checks failed; it reads, patches the marker in, and stops.
+      {
+        match: /^The project checks failed/,
+        turns: [
+          { toolCalls: [{ name: "fs.read", input: { path: "src/App.tsx" } }] },
+          {
+            toolCalls: [
+              {
+                name: "fs.patch",
+                input: { path: "src/App.tsx", edits: [{ find: "</h1>", replace: " (fixed)</h1>" }] },
+              },
+            ],
+          },
+          { text: "Applied the fix." },
+        ],
+      },
+      { match: "Fix the problems", turns: [{ text: "Nothing to do." }] },
     ],
   });
 });
@@ -73,7 +97,7 @@ afterAll(async () => {
 async function boot(
   root: string,
   approval: "none" | "trivial" | "standard",
-  opts: { allowWrites?: boolean; vcs?: TaskVcs } = {},
+  opts: { allowWrites?: boolean; vcs?: TaskVcs; validation?: ValidationSource } = {},
 ) {
   mkdirSync(path.join(root, "src"), { recursive: true });
   writeFileSync(path.join(root, "src", "App.tsx"), "export const App = () => <h1>Hello</h1>;\n");
@@ -163,6 +187,8 @@ async function boot(
       approvalThreshold: () => approval,
     },
     vcs: opts.vcs,
+    validation: opts.validation,
+    validations: memoryValidationStore(),
     newId: (p) => `${p}_${String(++n).padStart(3, "0")}`,
     hub: new TaskEventHub({ batchMs: 0 }),
   });
@@ -173,6 +199,74 @@ async function boot(
     events: new TaskEventsRepository(h.db),
     messages: new MessagesRepository(h.db),
   };
+}
+
+function memoryValidationStore() {
+  const rows = new Map<string, validationContracts.ValidationReport[]>();
+  return {
+    insert: (_id: string, taskId: string, report: validationContracts.ValidationReport) => {
+      rows.set(taskId, [...(rows.get(taskId) ?? []), report]);
+    },
+    list: (taskId: string) => rows.get(taskId) ?? [],
+  };
+}
+
+/**
+ * Fake validator: fails with one typecheck diagnostic until `src/App.tsx` contains `marker`
+ * (or forever when marker is undefined). Records every call so tests can count attempts.
+ */
+function fakeValidation(root: string, marker: string | undefined): ValidationSource & { calls: number } {
+  const source = {
+    calls: 0,
+    validate: (input: { attempt: number }) => {
+      source.calls += 1;
+      const content = readFileSync(path.join(root, "src", "App.tsx"), "utf8");
+      const ok = marker !== undefined && content.includes(marker);
+      const diagnostics = ok
+        ? []
+        : [
+            {
+              validator: "typecheck",
+              severity: "error" as const,
+              code: "TS2322",
+              message: "Type 'string' is not assignable to type 'number'.",
+              file: "src/App.tsx",
+              line: 1,
+              column: 14,
+            },
+          ];
+      return Promise.resolve({
+        attempt: input.attempt,
+        ok,
+        results: [
+          {
+            validator: "syntax",
+            status: "passed" as const,
+            diagnostics: [],
+            durationMs: 1,
+            truncated: false,
+          },
+          {
+            validator: "typecheck",
+            status: ok ? ("passed" as const) : ("failed" as const),
+            diagnostics,
+            durationMs: 5,
+            truncated: false,
+          },
+        ],
+        diagnostics,
+        durationMs: 6,
+        startedAt: 0,
+      });
+    },
+    repairNotes: (report: validationContracts.ValidationReport) =>
+      report.diagnostics.map(
+        (d) => `${d.validator}: ${d.file ?? ""}:${String(d.line ?? 0)} ${d.code ?? ""} — ${d.message}`,
+      ),
+    summarize: (report: validationContracts.ValidationReport) =>
+      report.results.map((r) => `${r.validator} ${r.status}`).join(", "),
+  };
+  return source;
 }
 
 const untilDone = (service: TaskService, taskId: string) =>
@@ -248,7 +342,7 @@ describe("build tasks", () => {
       const { taskId } = service.submit({
         projectId: "p1",
         request:
-          "Please change the greeting in the app heading to something friendlier for first-time visitors",
+          "Please change the greeting in the app heading to something friendlier for visitors who open the page for the first time",
         mode: "build",
       });
       const chunks = await untilDone(service, taskId);
@@ -257,6 +351,114 @@ describe("build tasks", () => {
       expect(calls[0]).toBe(`checkpoint:${taskId}`);
       expect(calls[1]).toMatch(new RegExp(`^commit:${taskId}:.+:src/App[.]tsx$`));
       expect(chunks.some((c) => c.kind === "note" && c.text.includes("abc123def4"))).toBe(true);
+    });
+  });
+
+  it("failing checks trigger a bounded repair loop that ends in COMPLETE once they pass", async () => {
+    await withTempDir(async (root) => {
+      const validation = fakeValidation(root, "(fixed)");
+      const { service, events } = await boot(root, "standard", { allowWrites: true, validation });
+      const { taskId } = service.submit({
+        projectId: "p1",
+        request:
+          "Please change the greeting in the app heading to something friendlier for visitors who open the page for the first time",
+        mode: "build",
+      });
+      const chunks = await untilDone(service, taskId);
+      expect(service.get(taskId).state).toBe("COMPLETE");
+      expect(readFileSync(path.join(root, "src", "App.tsx"), "utf8")).toContain("Hi there (fixed)");
+      expect(validation.calls).toBe(2);
+      expect(events.list(taskId).map((e) => e.toState)).toEqual([
+        "UNDERSTAND",
+        "PLAN",
+        "EXECUTE",
+        "VALIDATE",
+        "DIAGNOSE",
+        "REPAIR",
+        "VALIDATE",
+        "REVIEW",
+        "CHECKPOINT",
+        "COMPLETE",
+      ]);
+      const attempts = chunks.filter((c) => c.kind === "validation") as { attempt: number; ok: boolean }[];
+      expect(attempts.map((a) => [a.attempt, a.ok])).toEqual([
+        [1, false],
+        [2, true],
+      ]);
+      expect(service.validations(taskId)).toHaveLength(2);
+      expect(service.changes(taskId).map((c) => c.path)).toEqual(["src/App.tsx"]);
+    });
+  });
+
+  it("repair attempts are bounded: after 3 failed rounds the task parks in NEEDS_USER", async () => {
+    await withTempDir(async (root) => {
+      const validation = fakeValidation(root, undefined);
+      const { service, events } = await boot(root, "standard", { allowWrites: true, validation });
+      const { taskId } = service.submit({
+        projectId: "p1",
+        request:
+          "Please change the greeting in the app heading to something friendlier for visitors who open the page for the first time",
+        mode: "build",
+      });
+      await untilDone(service, taskId);
+      const task = service.get(taskId);
+      expect(task.state).toBe("NEEDS_USER");
+      expect(task.error).toContain("3 repair attempts");
+      expect(validation.calls).toBe(4); // initial + one per repair round
+      expect(events.list(taskId).filter((e) => e.toState === "REPAIR")).toHaveLength(3);
+      expect(events.list(taskId).at(-1)?.toState).toBe("NEEDS_USER");
+    });
+  });
+
+  it("recovers from an injected-error suite (≥ 95 %) without exceeding the attempt cap", async () => {
+    const markers = ["(fixed)", "(fixed)", "(fixed)", "(fixed)", "(fixed)", "(fixed)"];
+    let recovered = 0;
+    for (const marker of markers) {
+      await withTempDir(async (root) => {
+        const validation = fakeValidation(root, marker);
+        const { service } = await boot(root, "standard", { allowWrites: true, validation });
+        const { taskId } = service.submit({
+          projectId: "p1",
+          request:
+            "Please change the greeting in the app heading to something friendlier for visitors who open the page for the first time",
+          mode: "build",
+        });
+        await untilDone(service, taskId);
+        if (service.get(taskId).state === "COMPLETE" && validation.calls <= 4) recovered += 1;
+      });
+    }
+    expect(recovered / markers.length).toBeGreaterThanOrEqual(0.95);
+  }, 60_000);
+
+  it("diagnose & fix: a fix task skips planning, validates what is on disk and repairs it", async () => {
+    await withTempDir(async (root) => {
+      const validation = fakeValidation(root, "(fixed)");
+      const { service, events, messages } = await boot(root, "standard", { allowWrites: true, validation });
+      const { taskId } = service.submit({
+        projectId: "p1",
+        request: "Fix the problems reported by the project checks.",
+        mode: "build",
+        intent: "fix",
+      });
+      await untilDone(service, taskId);
+      const task = service.get(taskId);
+      expect(task.state).toBe("COMPLETE");
+      expect(task.intent).toBe("fix");
+      expect(readFileSync(path.join(root, "src", "App.tsx"), "utf8")).toContain("Hello (fixed)");
+      expect(events.list(taskId).map((e) => e.toState)).toEqual([
+        "UNDERSTAND",
+        "PLAN",
+        "EXECUTE",
+        "VALIDATE",
+        "DIAGNOSE",
+        "REPAIR",
+        "VALIDATE",
+        "REVIEW",
+        "CHECKPOINT",
+        "COMPLETE",
+      ]);
+      const assistant = messages.list(task.sessionId).filter((m) => m.role === "assistant");
+      expect(assistant.at(-1)?.content).toContain("Fixed the failing checks");
     });
   });
 
@@ -270,7 +472,7 @@ describe("build tasks", () => {
       const { taskId } = service.submit({
         projectId: "p1",
         request:
-          "Please change the greeting in the app heading to something friendlier for first-time visitors",
+          "Please change the greeting in the app heading to something friendlier for visitors who open the page for the first time",
         mode: "build",
       });
       await untilDone(service, taskId);
@@ -389,6 +591,7 @@ describe("build tasks", () => {
         projectId: "p1",
         sessionId: "s9",
         mode: "build",
+        intent: "change",
         request: "r",
         complexity: "standard",
         state: "EXECUTE",

@@ -139,6 +139,7 @@ export const tasks = sqliteTable(
     model: text("model"), // JSON ModelRef (0002)
     error: text("error"), // (0002)
     mode: text("mode").notNull().default("ask"), // (0002)
+    intent: text("intent").notNull().default("change"), // (0004)
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
     terminalAt: integer("terminal_at"),
@@ -216,6 +217,20 @@ export const toolCalls = sqliteTable(
     at: integer("at").notNull(),
   },
   (t) => [index("tool_calls_task_idx").on(t.taskId)],
+);
+
+export const taskValidations = sqliteTable(
+  "task_validations",
+  {
+    id: text("id").primaryKey(),
+    taskId: text("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    attempt: integer("attempt").notNull(),
+    report: text("report").notNull(), // JSON ValidationReport
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("task_validations_task_idx").on(t.taskId, t.attempt)],
 );
 
 export const checkpoints = sqliteTable(
@@ -308,6 +323,7 @@ export const schema = {
   tasks,
   taskEvents,
   taskChanges,
+  taskValidations,
   agentRuns,
   toolCalls,
   checkpoints,

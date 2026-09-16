@@ -44,7 +44,7 @@ export function RequestPane({
   const send = async () => {
     const text = request.trim();
     if (!text) return;
-    const result = await submit.run({ projectId, request: text, mode });
+    const result = await submit.run({ projectId, request: text, mode, intent: "change" });
     if (result) {
       setRequest("");
       onTaskStarted(result.taskId);

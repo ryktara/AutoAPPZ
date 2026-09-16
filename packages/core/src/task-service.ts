@@ -30,6 +30,7 @@ import {
   type memory,
   type project,
   type providers,
+  type validation,
 } from "@autoappz/contracts";
 import type { Logger } from "@autoappz/diagnostics";
 import type {
@@ -96,6 +97,30 @@ export interface RetrievalSource {
 }
 
 type ContextItemSummary = Extract<TaskStreamChunk, { kind: "context" }>["items"][number];
+type ValidationReport = validation.ValidationReport;
+
+/** Validation port (validators live in @autoappz/validation; the desktop app wires them). */
+export interface ValidationSource {
+  validate(input: {
+    projectId: string;
+    projectPath: string;
+    taskId: string;
+    complexity: providers.Complexity;
+    /** Paths changed by the task; empty for on-demand fixes (the wiring then uses the dirty tree). */
+    changedPaths: readonly string[];
+    attempt: number;
+    signal: AbortSignal;
+  }): Promise<ValidationReport>;
+  /** Diagnostics chosen for the builder and the lines explaining them. */
+  repairNotes(report: ValidationReport, changedPaths: readonly string[]): string[];
+  summarize(report: ValidationReport): string;
+}
+
+/** Persistence for validation reports (one per attempt). */
+export interface ValidationStore {
+  insert(id: string, taskId: string, report: ValidationReport, at: number): void;
+  list(taskId: string): ValidationReport[];
+}
 
 export interface TaskServiceOptions {
   tasks: TasksRepository;
@@ -109,6 +134,8 @@ export interface TaskServiceOptions {
   context: ProjectContextSource;
   vcs?: TaskVcs | undefined;
   retrieval?: RetrievalSource | undefined;
+  validation?: ValidationSource | undefined;
+  validations?: ValidationStore | undefined;
   /** Token budget for retrieved excerpts per model step (default 12 000). */
   contextBudgetTokens?: number | undefined;
   logger?: Logger | undefined;
@@ -135,6 +162,7 @@ interface Live {
   modelCalls: number;
   toolSteps: number;
   reviewRounds: number;
+  repairAttempts: number;
   /** Resolves when the user approves/revises/rejects. */
   approval?:
     | {
@@ -190,6 +218,7 @@ export class TaskService {
     sessionId?: string | undefined;
     request: string;
     mode: contracts.TaskMode;
+    intent?: contracts.TaskIntent | undefined;
   }): { taskId: string; sessionId: string } {
     const project = this.o.context.project(input.projectId);
     const complexity = classifyComplexity(input.request);
@@ -212,6 +241,7 @@ export class TaskService {
       projectId: project.id,
       sessionId: session.id,
       mode: input.mode,
+      intent: input.intent ?? "change",
       request: input.request,
       complexity,
       state: INITIAL_TASK_STATE,
@@ -303,6 +333,11 @@ export class TaskService {
     return this.o.tasks.list(projectId, limit);
   }
 
+  validations(taskId: string): ValidationReport[] {
+    this.get(taskId);
+    return this.o.validations?.list(taskId) ?? [];
+  }
+
   changes(taskId: string): contracts.TaskChange[] {
     this.get(taskId);
     return this.o.changes.list(taskId);
@@ -374,6 +409,16 @@ export class TaskService {
       const profile = profileFor(task.complexity);
       const ctx = this.promptContext(task);
       task = this.apply(task, { type: "context_sufficient" }); // → PLAN
+
+      if (task.intent === "fix") {
+        // Diagnose & fix: no plan, no edits up front — validate what is on disk and repair from there.
+        this.hub.publish(taskId, { kind: "note", text: "Running the project checks to find what to fix." });
+        if (!(await this.takeCheckpoint(task, live))) return;
+        task = this.apply(task, { type: "plan_skipped" }); // → EXECUTE
+        task = this.apply(task, { type: "edits_applied" }); // → VALIDATE
+        await this.validateReviewComplete(task, live, ctx, "none", "Checks pass.");
+        return;
+      }
 
       if (profile.skipPlan) {
         this.hub.publish(taskId, {
@@ -459,9 +504,10 @@ export class TaskService {
     review: "none" | "full",
     summary: string,
   ): Promise<void> {
-    // VALIDATE: validators arrive in M10; today the check set is empty and passes explicitly.
-    this.hub.publish(task.id, { kind: "note", text: "No validators configured yet; skipping checks." });
-    task = this.apply(task, { type: "checks_passed" }); // → REVIEW
+    const validated = await this.validateLoop(task, live, ctx);
+    if (validated === undefined) return;
+    task = validated.task;
+    if (validated.summary !== undefined) summary = validated.summary;
 
     if (review === "full" && live.reviewRounds < MAX_REVIEW_ROUNDS) {
       const verdict = await this.reviewStep(task, live, ctx);
@@ -482,15 +528,115 @@ export class TaskService {
         );
         if (again === undefined) return;
         task = this.apply(this.get(task.id), { type: "edits_applied" });
-        this.hub.publish(task.id, { kind: "note", text: "No validators configured yet; skipping checks." });
-        task = this.apply(task, { type: "checks_passed" });
-        summary = again;
+        const revalidated = await this.validateLoop(task, live, ctx);
+        if (revalidated === undefined) return;
+        task = revalidated.task;
+        summary = revalidated.summary ?? again;
       }
     }
     task = this.apply(task, { type: "review_passed" }); // → CHECKPOINT
     await this.commitCheckpoint(task, summary);
     // CHECKPOINT → COMPLETE happens in finish() via checkpoint_created, together with the summary message.
     this.settle(task.id, live, summary, undefined, "answered", true);
+  }
+
+  /**
+   * VALIDATE → (DIAGNOSE → REPAIR → VALIDATE)* → REVIEW. Each attempt is journaled and streamed; the
+   * builder gets the selected diagnostics; after MAX_REPAIR_ATTEMPTS the task parks in NEEDS_USER.
+   * Returns undefined when the task ended (failure/cancel); otherwise the task in REVIEW plus an
+   * optional summary override (used by fix tasks).
+   */
+  private async validateLoop(
+    task: Task,
+    live: Live,
+    ctx: ProjectPromptContext,
+  ): Promise<{ task: Task; summary: string | undefined } | undefined> {
+    if (!this.o.validation) {
+      this.hub.publish(task.id, { kind: "note", text: "No validators configured; skipping checks." });
+      return { task: this.apply(task, { type: "checks_passed" }), summary: undefined };
+    }
+    const project = this.o.context.project(task.projectId);
+    let summary: string | undefined;
+    for (;;) {
+      const changedPaths = [...new Set(this.o.changes.list(task.id).map((c) => c.path))];
+      const attempt = live.repairAttempts + 1;
+      let report: ValidationReport;
+      try {
+        report = await this.o.validation.validate({
+          projectId: task.projectId,
+          projectPath: project.path,
+          taskId: task.id,
+          complexity: task.complexity,
+          changedPaths,
+          attempt,
+          signal: live.controller.signal,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.settle(
+          task.id,
+          live,
+          "",
+          { message: `Validation could not run: ${message}`, retryable: true },
+          "answered",
+        );
+        return undefined;
+      }
+      if (live.controller.signal.aborted) {
+        this.settle(task.id, live, "", undefined, "answered");
+        return undefined;
+      }
+      const text = this.o.validation.summarize(report);
+      this.o.validations?.insert(this.newId("val"), task.id, report, this.now());
+      this.hub.publish(task.id, {
+        kind: "validation",
+        attempt,
+        ok: report.ok,
+        summary: text,
+        results: report.results.map((r) => ({
+          validator: r.validator,
+          status: r.status,
+          count: r.diagnostics.length,
+          ...(r.note !== undefined ? { note: r.note } : {}),
+        })),
+      });
+      if (report.ok) {
+        if (task.intent === "fix")
+          summary = attempt === 1 ? `No problems found: ${text}.` : `Fixed the failing checks: ${text}.`;
+        return { task: this.apply(task, { type: "checks_passed" }), summary };
+      }
+      task = this.apply(task, { type: "checks_failed" }); // → DIAGNOSE
+      if (live.repairAttempts >= MAX_REPAIR_ATTEMPTS) {
+        this.settle(
+          task.id,
+          live,
+          "",
+          {
+            message: `Checks still failing after ${String(MAX_REPAIR_ATTEMPTS)} repair attempts (${text}). Review the Validation tab and resume, or fix it by hand.`,
+            retryable: true,
+          },
+          "answered",
+        );
+        return undefined;
+      }
+      const notes = this.o.validation.repairNotes(report, changedPaths);
+      this.hub.publish(task.id, {
+        kind: "note",
+        text: `Checks failed (${text}); repair attempt ${String(attempt)} of ${String(MAX_REPAIR_ATTEMPTS)}.`,
+      });
+      task = this.apply(task, { type: "diagnosis_ready" }); // → REPAIR
+      const again = await this.builderLoop(
+        task,
+        live,
+        ctx,
+        profileFor(task.complexity).maxToolSteps,
+        notes,
+        "repair",
+      );
+      if (again === undefined) return undefined;
+      live.repairAttempts += 1;
+      task = this.apply(this.get(task.id), { type: "fix_applied" }); // → VALIDATE
+    }
   }
 
   private async takeCheckpoint(task: Task, live: Live): Promise<boolean> {
@@ -633,6 +779,7 @@ export class TaskService {
     ctx: ProjectPromptContext,
     maxToolSteps: number,
     reviewNotes?: string[],
+    notesKind: "review" | "repair" = "review",
   ): Promise<string | undefined> {
     const plan = this.get(task.id).plan;
     const tools = this.o.tools.specs();
@@ -640,6 +787,10 @@ export class TaskService {
       ? [...new Set(plan.steps.flatMap((st) => st.files))]
       : pathsMentioned(task.request);
     const phase = reviewNotes && reviewNotes.length > 0 ? "repair" : "build";
+    const notesIntro =
+      notesKind === "repair"
+        ? "The project checks failed after your changes. Fix these problems (read the files first; keep edits minimal):"
+        : "The reviewer requested changes:";
     const query = plan
       ? [task.request, plan.summary, ...plan.steps.map((st) => st.title)].join("\n")
       : task.request;
@@ -654,10 +805,7 @@ export class TaskService {
       { role: "user", content: task.request },
     ];
     if (reviewNotes && reviewNotes.length > 0)
-      messages.push({
-        role: "user",
-        content: `The reviewer requested changes:\n- ${reviewNotes.join("\n- ")}`,
-      });
+      messages.push({ role: "user", content: `${notesIntro}\n- ${reviewNotes.join("\n- ")}` });
     const project = this.o.context.project(task.projectId);
 
     for (;;) {
@@ -858,6 +1006,7 @@ export class TaskService {
       modelCalls: 0,
       toolSteps: 0,
       reviewRounds: 0,
+      repairAttempts: 0,
     };
     this.live.set(taskId, live);
     return live;
@@ -895,7 +1044,7 @@ export class TaskService {
   private apply(task: Task, event: TaskEvent, at = this.now()): Task {
     const result = transition(task.state, event, {
       mode: task.mode,
-      repairAttempts: 0,
+      repairAttempts: this.live.get(task.id)?.repairAttempts ?? 0,
       maxRepairAttempts: MAX_REPAIR_ATTEMPTS,
     });
     const next: Task = { ...task, state: result.state, updatedAt: at };

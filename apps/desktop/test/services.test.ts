@@ -189,6 +189,7 @@ describe("tool runtime + consent over the bus", () => {
         projectId: created.id,
         sessionId: "s1",
         mode: "ask",
+        intent: "change",
         request: "r",
         complexity: "standard",
         state: "EXECUTE",

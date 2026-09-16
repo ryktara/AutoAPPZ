@@ -252,6 +252,7 @@ describe("TaskService (ask)", () => {
       projectId: "p1",
       sessionId: "s9",
       mode: "ask",
+      intent: "change",
       request: "r",
       complexity: "standard",
       state: "EXECUTE",

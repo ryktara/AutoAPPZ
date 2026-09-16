@@ -83,6 +83,9 @@ importers:
       '@autoappz/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@autoappz/validation':
+        specifier: workspace:*
+        version: link:../../packages/validation
       '@vscode/ripgrep':
         specifier: ^1.18.0
         version: 1.18.0
@@ -417,6 +420,16 @@ importers:
       '@autoappz/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@autoappz/diagnostics':
+        specifier: workspace:*
+        version: link:../diagnostics
+      '@autoappz/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+    devDependencies:
+      '@autoappz/testing':
+        specifier: workspace:*
+        version: link:../testing
 
   tests/e2e:
     devDependencies:

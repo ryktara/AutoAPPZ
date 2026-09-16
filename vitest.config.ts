@@ -37,7 +37,7 @@ export default defineConfig({
       "packages/*/test/**/*.test.tsx",
       "tests/integration/**/*.test.ts",
     ],
-    exclude: ["**/node_modules/**", "**/dist/**", "_reference/**", "tests/e2e/**"],
+    exclude: ["**/node_modules/**", "**/dist/**", "_reference/**", "tests/e2e/**", "**/test/fixtures/**"],
     environment: "node",
     passWithNoTests: false,
     coverage: {

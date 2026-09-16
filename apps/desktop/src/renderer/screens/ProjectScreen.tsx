@@ -7,6 +7,7 @@ import { ExecutionPanel } from "./project/ExecutionPanel.tsx";
 import { ChangesPanel } from "./project/ChangesPanel.tsx";
 import { GitPanel } from "./project/GitPanel.tsx";
 import { IndexPanel } from "./project/IndexPanel.tsx";
+import { ValidationPanel } from "./project/ValidationPanel.tsx";
 import { PreviewPane } from "./project/PreviewPane.tsx";
 import { Dock } from "./project/Dock.tsx";
 import { useTaskStream } from "../state/use-task-stream.ts";
@@ -129,7 +130,12 @@ export function ProjectScreen({ id }: { readonly id: string }) {
           ) : tab === "project" ? (
             <ProjectPanel project={p.data} />
           ) : (
-            <EmptyState>{EMPTY_COPY[tab]}</EmptyState>
+            <ValidationPanel
+              projectId={id}
+              taskId={activeTaskId}
+              live={live}
+              onTaskStarted={setActiveTaskId}
+            />
           )}
         </div>
       </section>
@@ -143,13 +149,6 @@ export function ProjectScreen({ id }: { readonly id: string }) {
     </div>
   );
 }
-
-const EMPTY_COPY: Record<
-  Exclude<WorkTab, "transcript" | "plan" | "execution" | "changes" | "blueprint" | "memory" | "project">,
-  string
-> = {
-  validation: "Typecheck, lint, test and build results will be shown here.",
-};
 
 function BlueprintPanel({ projectId }: { readonly projectId: string }) {
   const input = useMemo(() => ({ projectId }), [projectId]);
