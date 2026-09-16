@@ -12,7 +12,10 @@ export interface TabsProps {
   readonly label?: string | undefined;
 }
 
-/** Accessible tab strip (roving tabindex, arrow-key navigation). Panels are rendered by the caller. */
+/**
+ * Accessible tab strip (roving tabindex, arrow-key navigation). The caller renders the active panel with
+ * role="tabpanel", id="panel-<id>" and aria-labelledby="tab-<id>" so aria-controls resolves.
+ */
 export function Tabs({ tabs, activeId, onChange, label }: TabsProps) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {

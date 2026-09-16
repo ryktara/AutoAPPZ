@@ -25,3 +25,8 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# generated at release time by tools/license-notice.mjs
+NOTICE-THIRD-PARTY.md
+sbom.cdx.json
+tools/bench/results/

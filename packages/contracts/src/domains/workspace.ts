@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { defineEvent, defineQuery } from "../definitions.ts";
+import { defineEvent, defineQuery, defineCommand } from "../definitions.ts";
 
 export const WorkspaceInfoSchema = z.object({
   appVersion: z.string().min(1),
@@ -24,4 +24,12 @@ export const workspaceReady = defineEvent({
 export const cacheInvalidate = defineEvent({
   name: "cache.invalidate",
   payload: z.object({ scopes: z.array(z.string().min(1)).min(1) }),
+});
+
+/** Writes a redacted diagnostics bundle (logs tail, versions, settings without secrets, projects, recent tasks, runtime, db stats) to the data directory. */
+export const workspaceExportDiagnostics = defineCommand({
+  name: "workspace.exportDiagnostics",
+  input: z.void(),
+  output: z.object({ path: z.string(), files: z.array(z.string()) }),
+  invalidates: [],
 });

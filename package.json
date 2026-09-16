@@ -22,7 +22,11 @@
     "dev": "pnpm --filter @autoappz/desktop dev",
     "build": "pnpm --filter @autoappz/desktop build",
     "package": "pnpm --filter @autoappz/desktop package",
-    "changeset": "changeset"
+    "changeset": "changeset",
+    "test:security": "vitest run tests/security",
+    "bench": "node --experimental-transform-types tools/bench/run.mjs --check",
+    "bench:startup": "node tools/bench/startup.mjs",
+    "license:notice": "node tools/license-notice.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.0",

@@ -1,0 +1,42 @@
+name: Benchmarks
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: bench-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    name: bench · ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Indexing, retrieval, search and memory on a synthesized 2k-file app; fails on target/baseline regressions.
+      - run: node --experimental-transform-types tools/bench/run.mjs --check --out tools/bench/results/${{ matrix.os }}.json
+      # Startup to interactive on the built desktop bundle (10 cold + 10 warm launches).
+      - run: pnpm --filter @autoappz/desktop build
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: tests/e2e
+      - run: xvfb-run -a node tools/bench/startup.mjs --out tools/bench/results/${{ matrix.os }}-startup.json
+        if: runner.os == 'Linux'
+      - run: node tools/bench/startup.mjs --out tools/bench/results/${{ matrix.os }}-startup.json
+        if: runner.os != 'Linux'
+      - uses: actions/upload-artifact@v6
+        with:
+          name: bench-${{ matrix.os }}
+          path: tools/bench/results
+          retention-days: 90

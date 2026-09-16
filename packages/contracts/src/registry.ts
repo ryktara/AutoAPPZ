@@ -31,6 +31,7 @@ export const ALL_CONTRACTS: readonly AnyDefinition[] = [
   workspace.workspaceInfo,
   workspace.workspaceReady,
   workspace.cacheInvalidate,
+  workspace.workspaceExportDiagnostics,
   project.projectList,
   project.projectGet,
   project.projectTemplates,

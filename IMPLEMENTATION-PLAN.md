@@ -1,5 +1,7 @@
 # AutoAPPZ Implementation Plan
 
+> **Status (2026-09-16):** M0–M14 implemented and committed on `main`; see `docs/STATUS.md` for the verified/CI-only/deferred breakdown. Items marked deferred in that page were scaled down explicitly rather than left half-built.
+
 Milestones are independently verifiable. Each defines scope, dependencies, deliverables, tests, acceptance criteria and explicit exclusions. The first production-quality vertical slice (M0–M10 subset) must be excellent before breadth (M11–M14).
 
 Legend: **AC** = acceptance criterion (must be test-enforced where stated).

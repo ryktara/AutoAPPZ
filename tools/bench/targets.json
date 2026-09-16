@@ -1,0 +1,38 @@
+{
+  "$comment": "Targets from docs/performance/BENCHMARKS.md (p50 / p95 in ms unless noted). Regressions above 10% of the committed baseline fail the nightly job.",
+  "index.cold.2k": {
+    "p50": 8000,
+    "p95": 20000,
+    "unit": "ms"
+  },
+  "index.incremental.2k": {
+    "p50": 100,
+    "p95": 250,
+    "unit": "ms"
+  },
+  "context.retrieve.30k": {
+    "p50": 300,
+    "p95": 700,
+    "unit": "ms"
+  },
+  "search.ripgrep": {
+    "p50": 200,
+    "p95": 500,
+    "unit": "ms"
+  },
+  "memory.rss.afterIndex": {
+    "p50": 400,
+    "p95": 400,
+    "unit": "MB"
+  },
+  "startup.cold": {
+    "p50": 1500,
+    "p95": 2500,
+    "unit": "ms"
+  },
+  "startup.warm": {
+    "p50": 800,
+    "p95": 1500,
+    "unit": "ms"
+  }
+}

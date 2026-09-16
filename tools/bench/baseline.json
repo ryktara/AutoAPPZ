@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "platform": "win32-x64",
+    "node": "v24.16.0",
+    "cpus": 14,
+    "files": 2000,
+    "at": "2026-09-16T15:00:09.696Z"
+  },
+  "benchmarks": {
+    "index.cold.2k": {
+      "p50": 7079.9,
+      "p95": 7086.2,
+      "n": 3,
+      "unit": "ms"
+    },
+    "index.incremental.2k": {
+      "p50": 4.1,
+      "p95": 14.4,
+      "n": 50,
+      "unit": "ms"
+    },
+    "context.retrieve.30k": {
+      "p50": 40.9,
+      "p95": 68.7,
+      "n": 50,
+      "unit": "ms"
+    },
+    "search.ripgrep": {
+      "p50": 150.8,
+      "p95": 200.3,
+      "n": 20,
+      "unit": "ms"
+    },
+    "memory.rss.afterIndex": {
+      "p50": 131,
+      "p95": 131,
+      "n": 1,
+      "unit": "MB"
+    }
+  }
+}

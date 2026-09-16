@@ -30,6 +30,7 @@ import { createIntegrationsWiring } from "./integrations-wiring.ts";
 import { createDeploymentWiring } from "./deployment-wiring.ts";
 import { createMcpWiring } from "./mcp-wiring.ts";
 import { createPluginsWiring } from "./plugins-wiring.ts";
+import { exportDiagnostics } from "./diagnostics-bundle.ts";
 import { summarizeReport } from "@autoappz/validation";
 import type { TaskService } from "@autoappz/core";
 import type { PermissionEngine } from "@autoappz/permissions";
@@ -182,6 +183,30 @@ export function createServices(options: ServicesOptions): MainServices {
   bus.handle(settings.secretsSet, (input) => secretService.set(input));
   bus.handle(settings.secretsDelete, ({ id }) => secretService.delete(id));
   bus.handle(settings.secretsStorageStatus, () => secretService.storageStatus());
+  bus.handle(workspace.workspaceExportDiagnostics, () =>
+    exportDiagnostics({
+      dataDirectory: options.dataDirectory,
+      appVersion: options.appVersion,
+      platform: options.platform,
+      settings: settingsService.get(),
+      projects: projects.list(true),
+      tasksFor: (projectId) => taskWiring.service.list(projectId, 20),
+      runtimeStatus: (projectId) => runtime.status(projectId),
+      tableCounts: () => {
+        const names = db.sqlite
+          .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+          .all() as { name: string }[];
+        return Object.fromEntries(
+          names.map((t) => [
+            t.name,
+            (db.sqlite.prepare(`SELECT COUNT(*) AS n FROM "${t.name}"`).get() as { n: number }).n,
+          ]),
+        );
+      },
+      redactor: options.redactor,
+      now: options.now,
+    }),
+  );
   bus.handle(workspace.workspaceInfo, () => ({
     appVersion: options.appVersion,
     platform: toPlatform(options.platform),

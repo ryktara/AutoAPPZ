@@ -116,7 +116,7 @@ export function ProjectScreen({ id }: { readonly id: string }) {
             setTab(t as WorkTab);
           }}
         />
-        <div className="az-pane-body">
+        <div className="az-pane-body" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
           {tab === "transcript" ? (
             <TranscriptPanel projectId={id} activeTaskId={activeTaskId} live={live} />
           ) : tab === "plan" ? (

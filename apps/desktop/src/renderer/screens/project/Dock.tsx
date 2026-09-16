@@ -22,7 +22,7 @@ export function Dock({ projectId }: { readonly projectId: string }) {
           setTab(t as DockTab);
         }}
       />
-      <div className="az-dock-body">
+      <div className="az-dock-body" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "problems" ? (
           <ProblemsPanel projectId={projectId} />
         ) : tab === "logs" ? (

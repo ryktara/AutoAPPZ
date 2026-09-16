@@ -257,6 +257,8 @@ function SecretsSection() {
 
 function AboutSection() {
   const info = useQuery(workspace.workspaceInfo, undefined);
+  const exportBundle = useCommand(workspace.workspaceExportDiagnostics);
+  const [bundle, setBundle] = useState<{ path: string; files: string[] } | undefined>();
   return (
     <Card title="About">
       {info.status === "error" ? (
@@ -273,6 +275,23 @@ function AboutSection() {
           Data directory: <code>{info.data.dataDirectory}</code>
         </p>
       ) : null}
+      {exportBundle.error ? <Banner tone="danger">{exportBundle.error.message}</Banner> : null}
+      <div className="az-row">
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={exportBundle.pending}
+          onClick={() => void exportBundle.run(undefined).then((r) => setBundle(r))}
+        >
+          Export diagnostics bundle
+        </Button>
+        {bundle ? (
+          <span className="az-muted" data-testid="diagnostics-bundle">
+            Written {String(bundle.files.length)} file(s) to <code>{bundle.path}</code> (logs are redacted; no
+            secrets).
+          </span>
+        ) : null}
+      </div>
     </Card>
   );
 }

@@ -13,6 +13,8 @@ allowBuilds:
   "@vscode/ripgrep": true
   # downloads the embedded git for the current platform
   dugite: true
+  # prepares Squirrel.Windows binaries for the Windows installer maker
+  electron-winstaller: true
 
 # @electron/rebuild (via electron-forge) resolves @electron/node-gyp from git.
 blockExoticSubdeps: false
